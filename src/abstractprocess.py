@@ -1,7 +1,6 @@
 from __future__ import annotations
-
+import jsonpickle
 import asyncio
-import pickle
 import queue
 import random
 from abc import ABC, abstractmethod
@@ -14,9 +13,11 @@ class Message:
     """
     sender = 0
     content = ''
+    counter = 0
 
-    def __init__(self, content, sender):
+    def __init__(self, content, sender, counter):
         self.sender = sender
+        self.counter = counter
         self.content = content
 
     def encode(self) -> bytes:
@@ -24,7 +25,7 @@ class Message:
         Make sure we are serializable with EOF line ending
         :return: Bytestring of the object
         """
-        return pickle.dumps(self) + '\n'.encode()
+        return (jsonpickle.encode(self) + '\n').encode()
 
     @classmethod
     def decode(cls, bytestring) -> Message:
@@ -33,7 +34,7 @@ class Message:
         :param bytestring: bytestring of the Message object
         :return: Message object
         """
-        return pickle.loads(bytestring)
+        return jsonpickle.decode(bytestring)
 
 
 class MessageBuffer:
@@ -86,7 +87,7 @@ class AbstractProcess(ABC):
         """
         pass
 
-    async def _random_delay(self, min_time: int = None, max_time: int = None):
+    async def _random_delay(self, min_time: float = None, max_time: float = None):
         """
         Delays the execution for a random time N such that a <= N <= b for a <= b and b <= N <= a for b < a.
         :param min_time: minimum delay in seconds

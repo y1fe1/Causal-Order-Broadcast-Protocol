@@ -62,6 +62,11 @@ in4150-python-template_node0_1 exited with code 0
 ```
 
 ## Run locally (for debugging)
+Install dependencies:
+```bash 
+pip install -r requirements.txt
+```
+Run algorithm:
 ```bash
 python3.8 -u src/main.py 0 &
 python3.8 -u src/main.py 1 &

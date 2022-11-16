@@ -10,13 +10,14 @@ class EchoProcess(AbstractProcess):
     The variables first_cycle and num_echo are examples of variables custom to the EchoProcess algorithm.
     """
     first_cycle = True
-    num_echo = 10
+    num_echo = 15
+    counter = 1
 
     async def algorithm(self):
         # Only run in the beginning
         if self.first_cycle:
             # Compose message
-            msg = Message("Hello world", self.idx)
+            msg = Message("Hello world", self.idx, self.counter)
             # Get first address we can find
             to = list(self.addresses.keys())[0]
             # Send message
@@ -27,9 +28,10 @@ class EchoProcess(AbstractProcess):
         if self.buffer.has_messages():
             # Retrieve message
             msg: Message = self.buffer.get()
-            print(f'[{self.num_echo}] Got message "{msg.content}" from process {msg.sender}')
+            print(f'[{self.num_echo}] Got message "{msg.content}" from process {msg.sender}, counter: {msg.counter}')
             # Compose echo message
-            echo_msg = Message(msg.content, self.idx)
+            echo_msg = Message(msg.content, self.idx, self.counter)
+            self.counter += 1
             # Send echo message
             await self.send_message(echo_msg, msg.sender)
             self.num_echo -= 1
