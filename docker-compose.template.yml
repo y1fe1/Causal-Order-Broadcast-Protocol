@@ -1,0 +1,25 @@
+version: '3.7'
+
+x-common-variables: &common-variables
+  TOPOLOGY: "topologies/ring.yaml"
+  EMPTY: null # In case there are no listed common-variables
+
+services:
+  node0:
+    build: .
+    ports:
+      - '9090:9090'
+    environment:
+      PID: 0
+      << : *common-variables
+    networks:
+      vpcbr:
+        ipv4_address: 192.168.55.10
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.55.0/24
+          gateway: 192.168.55.1

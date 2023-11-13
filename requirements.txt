@@ -1,1 +1,5 @@
 jsonpickle
+trio==0.14.0
+typing_extensions; python_version < '3.9'
+pyipv8==2.12
+pyyaml

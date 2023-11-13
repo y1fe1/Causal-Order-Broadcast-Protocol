@@ -3,7 +3,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+*.pem
+*.pb
+.vscode
+*.code-workspace
+src/ring_election.py
 # C extensions
 *.so
 
