@@ -1,15 +1,20 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 import random
-from typing import Dict, List, Tuple
+import typing
+from asyncio import Event
+from typing import Dict, List, Tuple, Callable
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper
-from ipv8.types import Peer, Address
-from dataclasses import dataclass
-from ipv8.messaging.payload_dataclass import overwrite_dataclass
-from abc import ABC, abstractmethod
-from asyncio import Event
+from ipv8.messaging.serialization import Payload
+from ipv8.types import Peer, LazyWrappedHandler, MessageHandlerFunction
 
+DataclassPayload = typing.TypeVar('DataclassPayload')
+AnyPayload = typing.Union[Payload, DataclassPayload]
+
+
+def message_wrapper(*payloads: type[AnyPayload]) -> Callable[[LazyWrappedHandler], MessageHandlerFunction]:
+    return lazy_wrapper(*payloads)
 
 
 class DistributedAlgorithm(Community):
@@ -26,7 +31,7 @@ class DistributedAlgorithm(Community):
         return next((key for key, p in self.nodes.items() if p == peer), None)
 
     async def started(
-        self, node_id: int, connections: List[Tuple[int, int]], event: Event, use_localhost: bool = True
+            self, node_id: int, connections: List[Tuple[int, int]], event: Event, use_localhost: bool = True
     ) -> None:
         self.event = event
         self.node_id = node_id
@@ -34,18 +39,18 @@ class DistributedAlgorithm(Community):
         self.on_start_delay = random.uniform(1.0, 3.0)  # Seconds
         host_network = self._get_lan_address()[0]
         host_network_base = ".".join(host_network.split(".")[:3])
-        
+
         async def _ensure_nodes_connected() -> None:
             # Make connections to known peers
             for node_id, conn in connections:
-                ip_address = f"{host_network_base}.{node_id+10}"
+                ip_address = f"{host_network_base}.{node_id + 10}"
                 if use_localhost:
                     ip_address = host_network
                 ad = (ip_address, conn)
                 self.walk_to(ad)
             valid = False
             conn_nodes = []
-            
+
             for node_id, node_port in self.connections:
                 conn_nodes = [
                     p for p in self.get_peers() if p.address[1] == node_port
@@ -76,3 +81,9 @@ class DistributedAlgorithm(Community):
             self.event.set()
 
         self.register_anonymous_task('delayed_stop', delayed_stop, delay=delay)
+
+    def ez_send(self, peer: Peer, *payloads: AnyPayload, **kwargs) -> None:
+        super().ez_send(peer, *payloads, **kwargs)
+
+    def add_message_handler(self, msg_num: int | type[AnyPayload], callback: MessageHandlerFunction) -> None:
+        super().add_message_handler(msg_num, callback)

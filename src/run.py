@@ -1,12 +1,9 @@
 import argparse
-import os
-import sys
 import yaml
 from asyncio import run
 from ipv8.configuration import ConfigBuilder, default_bootstrap_defs
 from ipv8.util import create_event_with_signals
 from ipv8_service import IPv8
-# from ipv8.community import Community
 from algorithms import *
 
 
@@ -19,7 +16,8 @@ def get_algorithm(name: str) -> DistributedAlgorithm:
         raise Exception(f'Cannot find select algorithm with name {name}')
     return algorithms[name]
 
-async def start_communities(node_id, connections, algorithm, use_localhost = True) -> None:
+
+async def start_communities(node_id, connections, algorithm, use_localhost=True) -> None:
     event = create_event_with_signals()
     base_port = 9090
     connections_updated = [(x, base_port + x) for x in connections]
