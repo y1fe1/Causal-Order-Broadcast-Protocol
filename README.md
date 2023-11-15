@@ -20,9 +20,16 @@ NOTE: When running locally Python >= 3.8  is required.
 - **run_echo.sh:** Script to run the echo example.
 - **run_election.sh:** Script to run the ring election example.
 
+## Topology File
+The topology file (in `./topologies`) is used to define how the nodes in the system are connected.
+The yaml file is a list of node ids with the corresponding connections to other nodes.
+To increase the number of nodes in a topology, run the `util.py` script.
+By default, `util.py` creates a ring topology. If you want/need to use another topology (fully-connected, parse network, ...), adjust the script.
+
 ## Remarks
 
 1. Feel free to change any of the files. This template is offered as starting point with working messaging between distributed processes.
+2. Be sure to adjust the topology based on the assignment. By default, `util.py` creates a ring topology. If you want/need to use another topology (fully-connected, parse network, ...), adjust the script.
 
 
 ## Prerequisites
