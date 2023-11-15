@@ -1,20 +1,32 @@
-from ipv8.community import CommunitySettings
-from ipv8.types import Peer
-from da_types import *
 import asyncio
 import random
 
+from ipv8.community import CommunitySettings
+from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from dataclasses import dataclass
+
+from ipv8.types import Peer
+
+from da_types import DistributedAlgorithm, message_wrapper
+
+# We are using a custom dataclass implementation
 dataclass = overwrite_dataclass(dataclass)
+
+
 @dataclass(
     msg_id=1
-)  # The value 1 identifies this message and must be unique per community
+)  # The value 1 identifies this message and must be unique per community.
 class ElectionMessage:
     elector: int
+
+
 @dataclass(
     msg_id=2
 )
 class TerminationMessage:
-    terminate: bool = True    
+    terminate: bool = True
+
+
 class RingElection(DistributedAlgorithm):
     """_summary_
     Implementation of Chang-Roberts algorithm, ring election in a unidirectional ring.
@@ -27,28 +39,28 @@ class RingElection(DistributedAlgorithm):
         super().__init__(settings)
         self.running = False
         # Make sure the register the message handlers for each message type
-        self.add_message_handler(ElectionMessage, self.on_message)  # type: ignore
-        self.add_message_handler(TerminationMessage, self.on_terminate)  # type: ignore
+        self.add_message_handler(ElectionMessage, self.on_message)
+        self.add_message_handler(TerminationMessage, self.on_terminate)
 
-    async def on_start(self):     
+    async def on_start(self):
         await asyncio.sleep(random.uniform(1.0, 3.0))
         if not self.running:
             peer = list(self.nodes.values())[0]
             print(f'[Node {self.node_id}] Starting by selecting a node: {self.node_id_from_peer(peer)}')
-            self.ez_send(peer, ElectionMessage(self.node_id)) # type: ignore
+            self.ez_send(peer, ElectionMessage(self.node_id))
 
-    @lazy_wrapper(TerminationMessage) # type: ignore
-    async def on_terminate(self, peer: Peer, payload: TerminationMessage) -> None: #type: ignore
+    @message_wrapper(TerminationMessage)
+    async def on_terminate(self, peer: Peer, _: TerminationMessage) -> None:
         if self.running:
             _next_node_id, next_peer = [x for x in self.nodes.items() if x[1] != peer][0]
-            self.ez_send(next_peer, TerminationMessage()) # type: ignore
+            self.ez_send(next_peer, TerminationMessage())
             self.running = False
             self.stop()
 
-    @lazy_wrapper(ElectionMessage) # type: ignore
-    async def on_message(self, peer: Peer, payload: ElectionMessage) -> None: #type: ignore
+    @message_wrapper(ElectionMessage)
+    async def on_message(self, peer: Peer, payload: ElectionMessage) -> None:
         self.running = True
-        # Sending it around the ring to the other peer we receveived it from
+        # Sending it around the ring to the other peer we received it from.
         next_node_id, next_peer = [x for x in self.nodes.items() if x[1] != peer][0]
         print(f'[Node {self.node_id}] Got a message from with elector id: {payload.elector}')
 
@@ -59,11 +71,10 @@ class RingElection(DistributedAlgorithm):
             print(f'[Node {self.node_id}] we are elected!')
             print(f'[Node {self.node_id}] Sending message to terminate the algorithm!')
 
-            self.ez_send(next_peer, TerminationMessage()) # type: ignore 
-        elif received_id <  self.node_id:
+            self.ez_send(next_peer, TerminationMessage())
+        elif received_id < self.node_id:
             # Send self.node_id along
-            self.ez_send(next_peer, ElectionMessage(self.node_id)) # type: ignore 
-        else: # received_id > self.node_id
+            self.ez_send(next_peer, ElectionMessage(self.node_id))
+        else:  # received_id > self.node_id
             # Send received_id along
-            self.ez_send(next_peer, ElectionMessage(received_id)) # type: ignore 
- 
+            self.ez_send(next_peer, ElectionMessage(received_id))

@@ -6,7 +6,7 @@ NOTE: When running locally Python >= 3.8  is required.
 
 ## Docs
 
-- IPV8 ([ipv8-docs](https://py-ipv8.readthedocs.io/en/latest/index.html)).
+- IPv8 ([ipv8-docs](https://py-ipv8.readthedocs.io/en/latest/index.html)).
 - Asyncio ([docs](https://docs.python.org/3/library/asyncio.html)) is heavily used for the implementation of this code.
 
 ## File structure
