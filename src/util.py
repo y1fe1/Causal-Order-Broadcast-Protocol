@@ -12,18 +12,18 @@ if __name__ == '__main__':
     parser.add_argument('algorithm', type=str, nargs='?', default='echo')
     parser.add_argument('template_file', type=str, nargs='?', default='docker-compose.template.yml')
     args = parser.parse_args()
-    print(f'{args=}')
 
     with open(args.template_file, 'r') as f:
         content = yaml.safe_load(f)
 
         node = content['services']['node0']
-        print(node)
         content['x-common-variables']['TOPOLOGY'] = args.topology_file
 
         nodes = {}
         baseport = 9090
         connections = {}
+
+        # Create a ring topology
         for i in range(args.num_nodes):
             n = copy.deepcopy(node)
             n['ports'] = [f'{baseport + i}:{baseport + i}']
@@ -39,6 +39,8 @@ if __name__ == '__main__':
 
         with open('docker-compose.yml', 'w') as f2:
             yaml.safe_dump(content, f2)
+            print(f'Output written to docker-compose.yml')
 
         with open(args.topology_file, 'w') as f3:
             yaml.safe_dump(connections, f3)
+            print(f'Output written to {args.topology_file}')
