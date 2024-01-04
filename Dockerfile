@@ -1,6 +1,6 @@
 # Load docker image with Java
 FROM python:3.8-alpine
-RUN apk add --no-cache python3-dev openssl-dev libffi-dev libc-dev gcc libsodium && pip3 install --upgrade pip
+RUN apk add --no-cache python3-dev openssl-dev libffi-dev libc-dev gcc libsodium-dev && pip3 install --upgrade pip
 # RUN apk-install python3-dev libffi-dev
 # Copy source files to image
 COPY requirements.txt /home/python/requirements.txt
