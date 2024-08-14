@@ -10,7 +10,7 @@ __pycache__/
 src/ring_election.py
 # C extensions
 *.so
-
+eval/*
 # Distribution / packaging
 .Python
 env/
