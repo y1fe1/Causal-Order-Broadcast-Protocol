@@ -11,21 +11,21 @@ NOTE: When running locally Python >= 3.8  is required.
 - Asyncio ([docs](https://docs.python.org/3/library/asyncio.html)) is heavily used for the implementation of this code.
 
 ## File structure
-
-- **src:** Holds all the python source files
-- **src/algorithms:** Contains code for different distributed algorithms
+- **cs4545:** Holds all the python source files
+- **cs4545/ implementation:** Contains code for different distributed algorithms
 - **topologies/default.yaml:** List of the addresses of all the processes that are participating in the algorithm.
 - **Dockerfile:** Dockerfile describing the image that is used by docker-compose
 - **docker-compose.yml:** Yaml file that describes the system for docker-compose.
 - **docker-compose.template.yml:** Yaml file used as a template for the `src/util.py` script.
-- **run_echo.sh:** Script to run the echo example.
-- **run_election.sh:** Script to run the ring election example.
 
 ## Topology File
 The topology file (in `./topologies`) is used to define how the nodes in the system are connected.
 The yaml file is a list of node ids with the corresponding connections to other nodes.
 To increase the number of nodes in a topology, run the `util.py` script.
 By default, `util.py` creates a ring topology. If you want/need to use another topology (fully-connected, parse network, ...), adjust the script.
+To run the util script `python -m cs4545.system.util compose <num-nodes> <topology-file> <algorithm-name>`
+
+
 
 ## Remarks
 
