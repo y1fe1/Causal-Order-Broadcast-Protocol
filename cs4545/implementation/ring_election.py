@@ -2,19 +2,14 @@ import asyncio
 import random
 
 from ipv8.community import CommunitySettings
-from ipv8.messaging.payload_dataclass import overwrite_dataclass
-from dataclasses import dataclass
-
+from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
-from da_types import DistributedAlgorithm, message_wrapper
-
-# We are using a custom dataclass implementation
-dataclass = overwrite_dataclass(dataclass)
+from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 
 
 @dataclass(
-    msg_id=1
+    msg_id=3
 )  # The value 1 identifies this message and must be unique per community.
 class ElectionMessage:
     elector: int
@@ -37,7 +32,6 @@ class RingElection(DistributedAlgorithm):
 
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)
-        self.running = False
         # Make sure the register the message handlers for each message type
         self.add_message_handler(ElectionMessage, self.on_message)
         self.add_message_handler(TerminationMessage, self.on_terminate)

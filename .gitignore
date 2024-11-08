@@ -8,6 +8,18 @@ __pycache__/
 .vscode
 *.code-workspace
 src/ring_election.py
+
+cs4545/eval/*
+eval/*
+cfg/*.test.yaml
+eval_alg.sh
+test_external.py
+*.test.py
+docker-compose.yml
+
+output/*
+results.csv
+
 # C extensions
 *.so
 eval/*
