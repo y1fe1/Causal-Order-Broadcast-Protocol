@@ -9,17 +9,19 @@ services:
     build: .
     ports:
       - '9090:9090'
+    volumes:
+      - ./output:/home/python/output
     environment:
       PID: 0
       << : *common-variables
     networks:
       vpcbr:
-        ipv4_address: 192.168.55.10
+        ipv4_address: 192.168.56.10
 networks:
   vpcbr:
     driver: bridge
     ipam:
       driver: default
       config:
-        - subnet: 192.168.55.0/24
-          gateway: 192.168.55.1
+        - subnet: 192.168.56.0/24
+          gateway: 192.168.56.1

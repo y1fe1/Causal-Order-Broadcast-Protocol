@@ -1,5 +1,8 @@
 jsonpickle
 trio==0.14.0
 typing_extensions
-pyipv8==2.12
+pyipv8 @ git+https://github.com/Tribler/py-ipv8@2.14
 pyyaml
+click
+networkx
+matplotlib
