@@ -52,7 +52,7 @@ Expected output is the same as when running with docker-compose.
 ### Echo algorithm
 
 ```bash
-python -m cs4545.system.util compose 2 topologies/echo.yaml echo
+python -m cs4545.system.util compose 2 topologies/echo.yaml echo --overwrite_topology
 docker compose build
 docker compose up
 ```
@@ -90,7 +90,7 @@ node1-1  | [Node 1] Node stats saved to output/node-1.yml in /home/python/output
 ### Ring Election algorithm
 
 ```bash
-python -m cs4545.system.util compose 4 topologies/election.yaml ring
+python -m cs4545.system.util compose 4 topologies/election.yaml ring --overwrite_topology
 docker compose build
 docker compose up
 ```
