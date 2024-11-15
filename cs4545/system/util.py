@@ -15,12 +15,13 @@ def cli():
 @click.argument('num_nodes', type=int)
 @click.argument('topology_file', type=str, default='topologies/echo.yaml')
 @click.argument('algorithm', type=str, default='echo')
-@click.option('--template_file', type=str, default='docker-compose.template.yml')
-def compose(num_nodes, topology_file, algorithm, template_file):
-    prepare_compose_file(num_nodes, topology_file, algorithm, template_file)
+@click.option('--template_file', type=str,  default='docker-compose.template.yml')
+@click.option('--overwrite_topology',is_flag=True, help='Overwrite the topology file. Useful for topologies that can be adjusted dynamically such as rings. Do not use this option if you have a static topology file that you want the preserve!')
+def compose(num_nodes, topology_file, algorithm, template_file, overwrite_topology):
+    prepare_compose_file(num_nodes, topology_file, algorithm, template_file, overwrite_topology=overwrite_topology)
 
 
-def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, location='cs4545'):
+def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, location='cs4545', overwrite_topology = False):
     with open(template_file, 'r') as f:
         content = yaml.safe_load(f)
 
@@ -35,7 +36,6 @@ def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, loc
         subnet = content['networks'][network_name]['ipam']['config'][0]['subnet'].split('/')[0]
         network_base = '.'.join(subnet.split('/')[0].split('.')[:-1])
 
-        # Create a ring topology
         for i in range(num_nodes):
             n = copy.deepcopy(node)
             n['ports'] = [f'{baseport + i}:{baseport + i}']
@@ -46,6 +46,8 @@ def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, loc
             n['environment']['LOCATION'] = location
             nodes[f'node{i}'] = n
 
+            # Create a ring topology
+            # It will only be used when the overwrite_topology is set to True
             connections[i] = [(i + 1) % num_nodes, (i - 1) % num_nodes]
 
         content['services'] = nodes
@@ -54,9 +56,10 @@ def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, loc
             yaml.safe_dump(content, f2)
             print(f'Output written to docker-compose.yml')
 
-        #with open(topology_file, 'w') as f3:
-        #    yaml.safe_dump(connections, f3)
-        #    print(f'Output written to {topology_file}')
+        if overwrite_topology:
+            with open(topology_file, 'w') as f3:
+                yaml.safe_dump(connections, f3)
+                print(f'Output written to {topology_file}')
 
 
 @cli.command('cfg')
