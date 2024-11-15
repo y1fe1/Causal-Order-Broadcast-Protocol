@@ -54,9 +54,9 @@ def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, loc
             yaml.safe_dump(content, f2)
             print(f'Output written to docker-compose.yml')
 
-        with open(topology_file, 'w') as f3:
-            yaml.safe_dump(connections, f3)
-            print(f'Output written to {topology_file}')
+        #with open(topology_file, 'w') as f3:
+        #    yaml.safe_dump(connections, f3)
+        #    print(f'Output written to {topology_file}')
 
 
 @cli.command('cfg')
