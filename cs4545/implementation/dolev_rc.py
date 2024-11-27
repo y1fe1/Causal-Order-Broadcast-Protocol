@@ -5,6 +5,7 @@ from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
+
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from typing import List
 
@@ -13,20 +14,39 @@ from typing import List
 )  # The value 1 identifies this message and must be unique per community.
 class DolevMessage:
     message: str
+    # id: Tuple[int, int]
     path: List[int]
-
+    
+@dataclass(msg_id=0)
+class ConnectionMessage:
+    node_id: int
+    node_state: str
 
 class BasicDolevRC(DistributedAlgorithm):
     
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)
         self.f = 3
+        self.starter_node = [0, 1, 2]
         self.delivered = False
         self.paths: set[tuple] = set()
         self.add_message_handler(DolevMessage, self.on_message)
 
+
     async def on_start(self):
         await super().on_start()
+        if self.node_id in self.starter_node:
+            await self.on_start_as_starter()
+
+        print(f"[Node {self.node_id}] is ready")
+        for peer in self.get_peers():
+            self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
+            
+    # async def on_start(self):
+    #     await super().on_start()
+    #     self.starting_node
+    #     if self.node_id in self.starter_id:
+    #         await self.on_start_as_starter()
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
