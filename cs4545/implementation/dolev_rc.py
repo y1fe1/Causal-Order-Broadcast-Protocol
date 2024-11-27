@@ -20,7 +20,7 @@ class BasicDolevRC(DistributedAlgorithm):
     
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)
-        self.f = 5
+        self.f = 3
         self.delivered = False
         self.paths: set[tuple] = set()
         self.add_message_handler(DolevMessage, self.on_message)
@@ -54,7 +54,7 @@ class BasicDolevRC(DistributedAlgorithm):
                     self.ez_send(neighbor, DolevMessage(payload.message, new_path))
 
             if len(self.paths) >= (self.f + 1):
-                if not self.delivered:
+                if not self.delivered and self.find_disjoint_paths_ok():
                     # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                     self.delivered = True
                     await self.trigger_delivery(payload.message)
@@ -66,3 +66,21 @@ class BasicDolevRC(DistributedAlgorithm):
     async def trigger_delivery(self, message: str):
         print(f"Node {self.node_id} delivering message: {message}")
         self.stop()
+    
+    def find_disjoint_paths_ok(self) -> bool:
+        if not self.paths:
+            return False
+        disjoint_paths = []
+        used_nodes = set()
+        paths_sorted = sorted(self.paths, key=len)
+        
+        for path in paths_sorted:
+            path = path[1:]
+            if not set(path).intersection(used_nodes):
+                disjoint_paths.append(list(path))
+                used_nodes.update(path)
+
+                if len(disjoint_paths) >= (self.f + 1):
+                    print(f"[Node {self.node_id}] Terminate, disjoint paths: {disjoint_paths}")
+                    return True
+        return False
