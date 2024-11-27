@@ -49,7 +49,14 @@ Expected output is the same as when running with docker-compose.
 
 ## Assignment 1
 
-The topology file is provided manually temporarily. To run
+The fully-connected topology file is provided manually temporarily. To run the dolev algorithm, run:
+
+```bash
+python -m cs4545.system.util compose 10 topologies/dolev.yaml dolev
+docker compose build
+docker compose up
+```
+
 
 
 ## Examples Docker
