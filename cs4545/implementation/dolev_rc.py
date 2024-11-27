@@ -8,6 +8,7 @@ from ipv8.types import Peer
 
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from typing import List
+from ..system.da_types import ConnectionMessage
 
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
@@ -16,37 +17,34 @@ class DolevMessage:
     message: str
     # id: Tuple[int, int]
     path: List[int]
-    
-@dataclass(msg_id=0)
-class ConnectionMessage:
-    node_id: int
-    node_state: str
 
 class BasicDolevRC(DistributedAlgorithm):
     
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)
         self.f = 3
-        self.starter_node = [0, 1, 2]
+        self.starter_nodes = [3, 4, 2]
         self.delivered = False
         self.paths: set[tuple] = set()
         self.add_message_handler(DolevMessage, self.on_message)
 
 
     async def on_start(self):
-        await super().on_start()
-        if self.node_id in self.starter_node:
+        # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
+        if self.node_id == self.starting_node:
+            # Checking if all node states are ready
+            all_ready = all([x == "ready" for x in self.node_states.values()])
+            while not all_ready:
+                await asyncio.sleep(1)
+                all_ready = all([x == "ready" for x in self.node_states.values()])
+            await asyncio.sleep(1)
+
+        if self.node_id in self.starter_nodes:
             await self.on_start_as_starter()
 
         print(f"[Node {self.node_id}] is ready")
         for peer in self.get_peers():
             self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
-            
-    # async def on_start(self):
-    #     await super().on_start()
-    #     self.starting_node
-    #     if self.node_id in self.starter_id:
-    #         await self.on_start_as_starter()
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
@@ -93,6 +91,7 @@ class BasicDolevRC(DistributedAlgorithm):
     async def trigger_delivery(self, message: str):
         print(f"Node {self.node_id} delivering message: {message}")
         self.stop()
+        # TODO: let it stop somewhere else
     
     def find_disjoint_paths_ok(self) -> bool:
         if not self.paths:
