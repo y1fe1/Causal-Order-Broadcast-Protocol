@@ -60,7 +60,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 if neighbor_id != self.node_id and neighbor_id not in new_path:
                     self.ez_send(neighbor, DolevMessage(payload.message, new_path))
 
-            if len(self.paths) >= (self.f + 1): # TODO: how to make sure the paths are disjoint?
+            if len(self.paths) >= (self.f + 1):
                 if not self.delivered and self.find_disjoint_paths_ok():
                     # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                     self.delivered = True
