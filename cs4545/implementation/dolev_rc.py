@@ -9,7 +9,7 @@ from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from typing import List
 
 @dataclass(
-    msg_id=3
+    msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
 class DolevMessage:
     message: str
@@ -20,7 +20,7 @@ class BasicDolevRC(DistributedAlgorithm):
     
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)
-        self.f = 5
+        self.f = 3                   # TODO: put this in a configuration file to avoid hardcoding
         self.delivered = False
         self.paths: set[tuple] = set()
         self.add_message_handler(DolevMessage, self.on_message)
@@ -29,11 +29,18 @@ class BasicDolevRC(DistributedAlgorithm):
         await super().on_start()
 
     async def on_start_as_starter(self):
-        print(f"Node {self.node_id} is starting Dolev's protocol")
-        message = f"Hello world from {self.node_id}"
+        # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
         self.delivered = False
         self.paths = set()
+        message = f"Hello world from {self.node_id}"
 
+        await self.on_broadcast(message)
+
+
+    async def on_broadcast(self, message: str) -> None:
+        # Assuming everything has been set up well for this node (delivered, paths, ...)
+        print(f"Node {self.node_id} is starting Dolev's protocol")
+        
         for peer in self.get_peers():
             self.ez_send(peer, DolevMessage(message, []))
 
@@ -53,7 +60,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 if neighbor_id != self.node_id and neighbor_id not in new_path:
                     self.ez_send(neighbor, DolevMessage(payload.message, new_path))
 
-            if len(self.paths) >= (self.f + 1):
+            if len(self.paths) >= (self.f + 1): # TODO: how to make sure the paths are disjoint?
                 if not self.delivered:
                     # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                     self.delivered = True
