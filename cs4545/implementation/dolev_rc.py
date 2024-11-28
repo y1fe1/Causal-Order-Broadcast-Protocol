@@ -5,11 +5,17 @@ from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
-
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from typing import List
 from ..system.da_types import ConnectionMessage
 
+
+class DolevConfig:
+    def __init__(self, starter_nodes=[0, 1, 2], f = 2, malicious_nodes=[7, 8]):
+        self.starter_nodes = starter_nodes
+        self.f = f
+        self.malicious_nodes = malicious_nodes
+        
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
@@ -19,14 +25,16 @@ class DolevMessage:
     path: List[int]
 
 class BasicDolevRC(DistributedAlgorithm):
-    
-    def __init__(self, settings: CommunitySettings) -> None:
+    def __init__(self, settings: CommunitySettings, parameters: DolevConfig=DolevConfig()) -> None:
         super().__init__(settings)
         
-        # hardcoded here
-        self.f = 2
-        self.starter_nodes = [3, 4, 2]
-        self.malicious_nodes = [0, 7]
+        if parameters.f != len(parameters.malicious_nodes):
+            print("Error: f should be equal to the length of malicious_nodes! Aborting......")
+            self.stop()
+        
+        self.f = parameters.f
+        self.starter_nodes = parameters.starter_nodes
+        self.malicious_nodes = parameters.malicious_nodes
 
        # self.is_malicious: bool = (self.node_id in self.malicious_nodes) 
 
