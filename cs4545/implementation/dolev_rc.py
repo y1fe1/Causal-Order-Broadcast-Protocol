@@ -1,5 +1,8 @@
 import asyncio
 import random
+import time
+from typing import Dict
+
        
 from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
@@ -24,6 +27,16 @@ class DolevMessage:
     message_id: int
     source_id : int
     path: List[int]
+
+class DolevMetrics:
+    node_count: int = 0
+    byzantine_count: int = 0
+    connectivity: int = 0
+    message_count: int = 0
+    last_message_count: int = 0
+    start_time: Dict[int, float] = {}
+    end_time: Dict[int, float] = {}
+    latency: float = 0.0
 
 class BasicDolevRC(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings, parameters: DolevConfig=DolevConfig()) -> None:
@@ -60,6 +73,8 @@ class BasicDolevRC(DistributedAlgorithm):
         self.MD5 = False
 
         self.add_message_handler(DolevMessage, self.on_message)
+        
+        self.metrics = DolevMetrics()
 
     def generate_message_id(self, msg: str) -> int:
         self.message_broadcast_cnt += 1
@@ -118,30 +133,39 @@ class BasicDolevRC(DistributedAlgorithm):
     async def on_start(self):
         if self.node_id in self.starter_nodes:
             await self.on_start_as_starter()
+        print(f"[DEBUG] Node {self.node_id} starting with starter_nodes={self.starter_nodes}")
 
         # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
         if self.node_id == self.starting_node:
             # Checking if all node states are ready
             all_ready = all([x == "ready" for x in self.node_states.values()])
             while not all_ready:
+                print(f"[DEBUG] Node {self.node_id} waiting, states={self.node_states}")
                 await asyncio.sleep(1)
                 all_ready = all([x == "ready" for x in self.node_states.values()])
+                
+            print(f"[DEBUG] Node {self.node_id} has received all ready states, ready to run")
             await asyncio.sleep(1)
 
+        print(f"[DEBUG] Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
         print(f"[Node {self.node_id}] is ready")
         for peer in self.get_peers():
             self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
-
+            
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
-
+        print(f"[DEBUG] Node {self.node_id} entering on_start_as_starter")
         message = self.generate_message()
+        print(f"[DEBUG] Generated message: {message}")
         await self.on_broadcast(message)
 
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
+        print(f"[DEBUG] Node {self.node_id} entering on_broadcast")
+        print(f"[DEBUG] Peers count: {len(self.get_peers())}")
+
         print(f"Node {self.node_id} is starting Dolev's protocol")
         
         peers = self.get_peers()
@@ -219,7 +243,11 @@ class BasicDolevRC(DistributedAlgorithm):
                 new_path = msg_path + [sender_id]
 
             #self.paths.add(tuple(new_path))
-            self.message_paths.setdefault(message_id, set()).add(tuple(new_path))
+            if self.metrics.start_time.get(payload.message_id, 0) == 0:
+                self.metrics_init()
+                self.set_start_time(payload.message_id)
+            
+            self.message_paths.setdefault(payload.message_id, set()).add(tuple(new_path))
 
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
             if self.MD1 and not self.is_malicious and not self.is_delivered[message_id] and sender_id == source_id:
@@ -232,7 +260,8 @@ class BasicDolevRC(DistributedAlgorithm):
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
             if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
-
+                self.metrics.message_count = len(self._message_history)
+                
                 disjoint_path_find_log = f"Enough node-disjoint paths found, message will be delivered"
                 self.append_output(disjoint_path_find_log)
                 print(disjoint_path_find_log)
@@ -286,6 +315,11 @@ class BasicDolevRC(DistributedAlgorithm):
         self.save_algorithm_output()
         self.save_node_stats()
 
+        self.is_delivered[message.message_id] = True
+        
+        self.get_end_time_and_latency(message.message_id)
+        self.write_metrics()
+
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
         if not self.message_paths.get(msg_id):
@@ -307,3 +341,24 @@ class BasicDolevRC(DistributedAlgorithm):
                     print(path_log)
                     return True
         return False
+
+    def set_start_time(self, msg_id):
+        self.metrics.start_time[msg_id] = time.time()
+        
+    def get_end_time_and_latency(self, msg_id):
+        self.metrics.end_time[msg_id] = time.time()
+        start_time = self.metrics.start_time.get(msg_id, 0.0)
+
+        self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time
+        
+    def write_metrics(self):
+        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.connectivity},{self.metrics.latency:.3f},{self.metrics.message_count - self.metrics.last_message_count}"
+        self.metrics.last_message_count = self.metrics.message_count
+        with open("output/metrics_output.csv", "a") as f:
+            f.write(metrics_log + "\n")
+        
+    def metrics_init(self):
+        self.metrics.node_count = len(self.nodes)
+        self.metrics.byzantine_count = len(self.malicious_nodes)
+        self.metrics.connectivity = len(self.get_peers())
+        self.metrics.message_count = 0
