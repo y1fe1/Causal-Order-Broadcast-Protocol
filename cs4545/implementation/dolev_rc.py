@@ -116,16 +116,21 @@ class BasicDolevRC(DistributedAlgorithm):
     async def on_start(self):
         if self.node_id in self.starter_nodes:
             await self.on_start_as_starter()
+        print(f"[DEBUG] Node {self.node_id} starting with starter_nodes={self.starter_nodes}")
 
         # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
         if self.node_id == self.starting_node:
             # Checking if all node states are ready
             all_ready = all([x == "ready" for x in self.node_states.values()])
             while not all_ready:
+                print(f"[DEBUG] Node {self.node_id} waiting, states={self.node_states}")
                 await asyncio.sleep(1)
                 all_ready = all([x == "ready" for x in self.node_states.values()])
+                
+            print(f"[DEBUG] Node {self.node_id} has received all ready states, ready to run")
             await asyncio.sleep(1)
 
+        print(f"[DEBUG] Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
         print(f"[Node {self.node_id}] is ready")
         for peer in self.get_peers():
             self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
@@ -133,13 +138,17 @@ class BasicDolevRC(DistributedAlgorithm):
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
-
+        print(f"[DEBUG] Node {self.node_id} entering on_start_as_starter")
         message = self.generate_message()
+        print(f"[DEBUG] Generated message: {message}")
         await self.on_broadcast(message)
 
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
+        print(f"[DEBUG] Node {self.node_id} entering on_broadcast")
+        print(f"[DEBUG] Peers count: {len(self.get_peers())}")
+
         print(f"Node {self.node_id} is starting Dolev's protocol")
         
         peers = self.get_peers()
