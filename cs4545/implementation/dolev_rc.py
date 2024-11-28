@@ -49,7 +49,7 @@ class BasicDolevRC(DistributedAlgorithm):
         return self.node_id * 37 + self.message_broadcast_cnt + hash(msg)
     
     def generate_message(self) -> DolevMessage:
-        msg =  ''.join(random.choice(['Y', 'M', 'C', 'A']))
+        msg =  ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
         id = self.generate_message_id(msg)
         return DolevMessage(msg, id, [])
 
@@ -106,7 +106,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 if not self.is_delivered.get(payload.message_id) and self.find_disjoint_paths_ok(payload.message_id):
                     # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                     self.is_delivered[payload.message_id] = True
-                    await self.trigger_delivery(payload.message)
+                    await self.trigger_delivery(payload)
            
         except Exception as e:
             print(f"Error in on_message: {e}")
