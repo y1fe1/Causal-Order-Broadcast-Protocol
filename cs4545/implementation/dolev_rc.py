@@ -42,9 +42,9 @@ class BasicDolevRC(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings, parameters: DolevConfig=DolevConfig()) -> None:
         super().__init__(settings)
         
-        if parameters.f != len(parameters.malicious_nodes):
-            print("Error: f should be equal to the length of malicious_nodes! Aborting......")
-            self.stop()
+        # if parameters.f != len(parameters.malicious_nodes):
+        #     print("Error: f should be equal to the length of malicious_nodes! Aborting......")
+        #     self.stop()
         
         self.f = parameters.f
         self.starter_nodes = parameters.starter_nodes
@@ -61,7 +61,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.malicious_behaviour = "modify_msg_id"
 
         self.is_delivered: dict[int, bool] = {}
-        self.delivered_neighbour = dict[int, set[int]] = {}
+        self.delivered_neighbour: dict[int, set[int]] = {}
         self.message_paths: dict[int, set[tuple]] = {}
         self.message_broadcast_cnt = 0
 
@@ -99,9 +99,9 @@ class BasicDolevRC(DistributedAlgorithm):
     def mal_modify_msg(self, payload) ->  DolevMessage:
 
         if payload:
-            original_msg = payload.msg
-            payload.msg = f"fake behaviour set on: {original_msg}"
-            payload.id = self.generate_message_id(payload.msg)
+            original_msg = payload.message
+            payload.message = f"fake behaviour set on: {original_msg}"
+            payload.id = self.generate_message_id(payload.message)
         
             fake_msg_log = f"[Malicious Node {self.node_id}] tampered the original msg"
             self.append_output(fake_msg_log)
@@ -131,6 +131,9 @@ class BasicDolevRC(DistributedAlgorithm):
 
 
     async def on_start(self):
+        if self.node_id in self.malicious_nodes:
+            self.is_malicious = True
+
         if self.node_id in self.starter_nodes:
             await self.on_start_as_starter()
         print(f"[DEBUG] Node {self.node_id} starting with starter_nodes={self.starter_nodes}")
@@ -234,13 +237,13 @@ class BasicDolevRC(DistributedAlgorithm):
             print(MD3_log)
 
         try:
-            recieved_log = f"[Node {self.node_id}] Got message: {message_id} from node: {sender_id} with path {new_path}"
-            self.append_output(recieved_log)
-            print(recieved_log)
-
             new_path = msg_path
             if sender_id != source_id:
                 new_path = msg_path + [sender_id]
+
+            recieved_log = f"[Node {self.node_id}] Got message: {message_id} from node: {sender_id} with path {new_path}"
+            self.append_output(recieved_log)
+            print(recieved_log)
 
             #self.paths.add(tuple(new_path))
             if self.metrics.start_time.get(payload.message_id, 0) == 0:
@@ -269,7 +272,8 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.trigger_delivery(payload)
 
             #all node that can be skipped
-            node_to_skip = set(new_path).update([source_id, self.node_id])
+            node_to_skip = set(new_path)
+            node_to_skip.update([source_id, self.node_id])
 
             if self.MD3:
                 node_to_skip.update(self.delivered_neighbour[message_id])
@@ -284,7 +288,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 neighbor_id = self.node_id_from_peer(neighbor)
 
                 # MD2 
-                if self.is_delivered[message_id] and len(new_path) != 0 :
+                if self.is_delivered.get(message_id) and len(new_path) != 0 :
                     MD2_log = f"[MD2 condition met, msg {message_id} delivered, it will not send it to its neighbour]"
                     self.append_output(MD2_log)
                     break
