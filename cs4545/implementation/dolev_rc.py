@@ -11,7 +11,7 @@ from ..system.da_types import ConnectionMessage
 
 
 class DolevConfig:
-    def __init__(self, starter_nodes=[0, 1, 2], f = 2, malicious_nodes=[7, 8]):
+    def __init__(self, starter_nodes=[1, 0, 2, 4], f = 2, malicious_nodes=[7, 8]):
         self.starter_nodes = starter_nodes
         self.f = f
         self.malicious_nodes = malicious_nodes
@@ -37,7 +37,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.malicious_nodes = parameters.malicious_nodes
 
         #assume no malicious node exist rn
-        self.is_malicious: bool = False #(self.node_id in self.malicious_nodes) 
+        self.is_malicious: bool = False#(self.node_id in self.malicious_nodes) 
         self.malicious_behaviour = None
 
         for mal_node in self.malicious_nodes:
@@ -114,6 +114,9 @@ class BasicDolevRC(DistributedAlgorithm):
 
 
     async def on_start(self):
+        if self.node_id in self.starter_nodes:
+            await self.on_start_as_starter()
+
         # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
         if self.node_id == self.starting_node:
             # Checking if all node states are ready
@@ -123,12 +126,10 @@ class BasicDolevRC(DistributedAlgorithm):
                 all_ready = all([x == "ready" for x in self.node_states.values()])
             await asyncio.sleep(1)
 
-        if self.node_id in self.starter_nodes:
-            await self.on_start_as_starter()
-
         print(f"[Node {self.node_id}] is ready")
         for peer in self.get_peers():
             self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
+
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
