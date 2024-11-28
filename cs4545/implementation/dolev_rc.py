@@ -5,11 +5,17 @@ from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
-
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from typing import List
 from ..system.da_types import ConnectionMessage
 
+
+class DolevConfig:
+    def __init__(self, starter_nodes=[0, 1, 2], f = 2, malicious_nodes=[7, 8]):
+        self.starter_nodes = starter_nodes
+        self.f = f
+        self.malicious_nodes = malicious_nodes
+        
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
@@ -19,14 +25,16 @@ class DolevMessage:
     path: List[int]
 
 class BasicDolevRC(DistributedAlgorithm):
-    
-    def __init__(self, settings: CommunitySettings) -> None:
+    def __init__(self, settings: CommunitySettings, parameters: DolevConfig=DolevConfig()) -> None:
         super().__init__(settings)
         
-        # hardcoded here
-        self.f = 2
-        self.starter_nodes = [3, 4, 2]
-        self.malicious_nodes = [0, 7]
+        if parameters.f != len(parameters.malicious_nodes):
+            print("Error: f should be equal to the length of malicious_nodes! Aborting......")
+            self.stop()
+        
+        self.f = parameters.f
+        self.starter_nodes = parameters.starter_nodes
+        self.malicious_nodes = parameters.malicious_nodes
 
         #assume no malicious node exist rn
         self.is_malicious: bool = False #(self.node_id in self.malicious_nodes) 
@@ -49,7 +57,7 @@ class BasicDolevRC(DistributedAlgorithm):
         return self.node_id * 37 + self.message_broadcast_cnt + hash(msg)
     
     def generate_message(self) -> DolevMessage:
-        msg =  ''.join(random.choice(['Y', 'M', 'C', 'A']))
+        msg =  ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
         id = self.generate_message_id(msg)
         return DolevMessage(msg, id, [])
     
@@ -180,7 +188,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 if not self.is_delivered.get(payload.message_id) and self.find_disjoint_paths_ok(payload.message_id):
                     # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                     self.is_delivered[payload.message_id] = True
-                    await self.trigger_delivery(payload.message)
+                    await self.trigger_delivery(payload)
            
         except Exception as e:
             print(f"Error in on_message: {e}")
