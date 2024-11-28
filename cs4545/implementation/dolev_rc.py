@@ -50,6 +50,13 @@ class BasicDolevRC(DistributedAlgorithm):
         self.message_paths: dict[int, set[tuple]] = {}
         self.message_broadcast_cnt = 0
 
+        #optimization control vairable
+        self.MD1 = False
+        self.MD2 = False
+        self.MD3 = False
+        self.MD4 = False
+        self.MD5 = False
+
         self.add_message_handler(DolevMessage, self.on_message)
 
     def generate_message_id(self, msg: str) -> int:
@@ -62,8 +69,9 @@ class BasicDolevRC(DistributedAlgorithm):
         return DolevMessage(msg, id, [])
     
     def generate_malicious_msg(self) -> DolevMessage:
+
         msg = f"fake news!"
-        id = self.generate_message_id(msg) - hash(msg)
+        id = self.generate_message_id(msg)
 
         fake_msg_log = f"[Malicious Node {self.node_id}] generated malicious msg to send"
         self.append_output(fake_msg_log)
@@ -170,7 +178,10 @@ class BasicDolevRC(DistributedAlgorithm):
             payload = self.execute_mal_process(payload)
 
         try:
-            # print(f"[Node {self.node_id}] Got message from node: {sender_id} with path {payload.path}")
+
+            recieved_log = f"[Node {self.node_id}] Got message from node: {sender_id} with path {payload.path}"
+            self.append_output(recieved_log)
+            print(recieved_log)
 
             new_path = payload.path + [sender_id]
 
@@ -188,7 +199,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
                     self.ez_send(neighbor, DolevMessage(payload.message, payload.message_id, new_path))
 
-            #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1):
+            #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
             
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
             if not self.is_malicious and not self.is_delivered.get(payload.message_id) and self.find_disjoint_paths_ok(payload.message_id):
@@ -209,6 +220,9 @@ class BasicDolevRC(DistributedAlgorithm):
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
         self.append_output(deliver_log)
         print(deliver_log)
+
+        for msg_id, status in self.is_delivered.items():
+            self.append_output(f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
         self.save_algorithm_output()
         self.save_node_stats()
