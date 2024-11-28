@@ -28,7 +28,15 @@ class BasicDolevRC(DistributedAlgorithm):
         self.starter_nodes = [3, 4, 2]
         self.malicious_nodes = [0, 7]
 
-       # self.is_malicious: bool = (self.node_id in self.malicious_nodes) 
+        #assume no malicious node exist rn
+        self.is_malicious: bool = False #(self.node_id in self.malicious_nodes) 
+        self.malicious_behaviour = None
+
+        for mal_node in self.malicious_nodes:
+            if(mal_node in  self.starter_nodes):
+                self.malicious_behaviour = "generate_fake_msg"
+            else : 
+                self.malicious_behaviour = "modify_msg_id"
 
         self.is_delivered: dict[int, bool] = {}
         self.message_paths: dict[int, set[tuple]] = {}
@@ -44,6 +52,50 @@ class BasicDolevRC(DistributedAlgorithm):
         msg =  ''.join(random.choice(['Y', 'M', 'C', 'A']))
         id = self.generate_message_id(msg)
         return DolevMessage(msg, id, [])
+    
+    def generate_malicious_msg(self) -> DolevMessage:
+        msg = f"fake news!"
+        id = self.generate_message_id(msg) - hash(msg)
+
+        fake_msg_log = f"[Malicious Node {self.node_id}] generated malicious msg to send"
+        self.append_output(fake_msg_log)
+        print(fake_msg_log)
+        
+        return DolevMessage(msg,id,[])
+    
+    def mal_modify_msg(self, payload) ->  DolevMessage:
+
+        if payload:
+            original_msg = payload.msg
+            payload.msg = f"fake behaviour set on: {original_msg}"
+            payload.id = self.generate_message_id(payload.msg)
+        
+            fake_msg_log = f"[Malicious Node {self.node_id}] tampered the original msg"
+            self.append_output(fake_msg_log)
+            print(fake_msg_log)
+
+            return payload
+
+    def execute_mal_process(self, msg) :
+
+        (behaviour,args) = {
+            "generate_fake_msg" : (self.generate_malicious_msg, ()),
+            "modify_msg_id" : (self.mal_modify_msg, (msg,)),
+        }.get(self.malicious_behaviour, (None,None))
+
+        try:
+            if behaviour is None:
+                raise ValueError("No valid behavior was selected for malicious processing.")
+        
+            processed_mal_msg = behaviour(*args)
+
+        except Exception as e:
+            print(f"Error in execute_mal_process: {e}")
+            raise
+        
+        return processed_mal_msg
+    
+
 
     async def on_start(self):
         # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
@@ -73,9 +125,31 @@ class BasicDolevRC(DistributedAlgorithm):
         # Assuming everything has been set up well for this node (delivered, paths, ...)
         print(f"Node {self.node_id} is starting Dolev's protocol")
         
-        for peer in self.get_peers():
-            self.ez_send(peer, message)
+        peers = self.get_peers()
 
+        #if the node is a malicious node, then generate a fake msg to deliver to maximum f 
+        if self.is_malicious :
+            max_broadcast_cnt = self.f
+            message = self.execute_mal_process(message)
+
+        else:
+            max_broadcast_cnt = len(peers)
+
+        try:
+            for peer in peers[:max_broadcast_cnt]:
+
+                peer_id = self.node_id_from_peer(peer)
+
+                broad_cast_log = f"[Node {self.node_id}] Sent message to node {peer_id}"
+                self.append_output(broad_cast_log)
+                print(broad_cast_log)
+
+                self.ez_send(peer, message)
+
+        except Exception as e:
+            print(f"Error in on_broadcast: {e}")
+            raise e
+        
         await self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -88,10 +162,18 @@ class BasicDolevRC(DistributedAlgorithm):
             #self.paths.add(tuple(new_path))
             self.message_paths.setdefault(payload.message_id, set()).add(tuple(new_path))
 
+            if self.is_malicious and (self.node_id not in self.starter_nodes):
+                payload = self.execute_mal_process(payload)
+
             for neighbor in self.get_peers():
                 neighbor_id = self.node_id_from_peer(neighbor)
                 if neighbor_id != self.node_id and neighbor_id not in new_path:
-                    print(f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message_id}")
+
+                    msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message_id}"
+                    self.append_output(msg_log)
+
+                    print(msg_log)
+
                     self.ez_send(neighbor, DolevMessage(payload.message, payload.message_id, new_path))
 
             if len(self.message_paths.get(payload.message_id)) >= (self.f + 1):
@@ -105,7 +187,13 @@ class BasicDolevRC(DistributedAlgorithm):
             raise e
 
     async def trigger_delivery(self, message: DolevMessage):
-        print(f"Node {self.node_id} delivering message: {message.message}")
+
+        deliver_log = f"Node {self.node_id} delivering message: {message.message}"
+        print(deliver_log)
+
+        self.save_algorithm_output()
+        self.save_node_stats()
+
         self.is_delivered[message.message_id] = True
 
     
@@ -123,6 +211,9 @@ class BasicDolevRC(DistributedAlgorithm):
                 used_nodes.update(path)
 
                 if len(disjoint_paths) >= (self.f + 1):
-                    print(f"[Node {self.node_id}] Terminate, disjoint paths: {disjoint_paths}")
+
+                    path_log = f"[Node {self.node_id}] Terminate, disjoint paths: {disjoint_paths}" 
+                    self.append_output(path_log)
+                    print(path_log)
                     return True
         return False
