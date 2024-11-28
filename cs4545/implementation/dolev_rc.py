@@ -22,6 +22,7 @@ class DolevConfig:
 class DolevMessage:
     message: str
     message_id: int
+    source_id : int
     path: List[int]
 
 class BasicDolevRC(DistributedAlgorithm):
@@ -47,6 +48,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.malicious_behaviour = "modify_msg_id"
 
         self.is_delivered: dict[int, bool] = {}
+        self.delivered_neighbour = dict[int, set[int]] = {}
         self.message_paths: dict[int, set[tuple]] = {}
         self.message_broadcast_cnt = 0
 
@@ -66,7 +68,7 @@ class BasicDolevRC(DistributedAlgorithm):
     def generate_message(self) -> DolevMessage:
         msg =  ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
         id = self.generate_message_id(msg)
-        return DolevMessage(msg, id, [])
+        return DolevMessage(msg, id,self.node_id,[])
     
     def generate_malicious_msg(self) -> DolevMessage:
 
@@ -77,7 +79,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.append_output(fake_msg_log)
         print(fake_msg_log)
         
-        return DolevMessage(msg,id,[])
+        return DolevMessage(msg,id,self.node_id,[])
     
     def mal_modify_msg(self, payload) ->  DolevMessage:
 
@@ -173,40 +175,62 @@ class BasicDolevRC(DistributedAlgorithm):
     async def on_message(self, peer: Peer, payload: DolevMessage) -> None:
 
         sender_id = self.node_id_from_peer(peer)
-        message_id = payload.message_id
+        source_id, message_id, msg_path = payload.source_id,payload.message_id,payload.path
 
         # if the node is malicious, it will modify the msg
         if self.is_malicious and (self.node_id not in self.starter_nodes):
             payload = self.execute_mal_process(payload)
 
+
+        if self.MD5 and self.is_delivered[message_id]:  #if msg is delivered already, it can be discarded
+
+            MD5_log = f"[Node {self.node_id}] received an already delivered, can be discarded"
+            self.append_output(MD5_log)
+            print(MD5_log)
+            
+            return
+
+        if self.MD4 and sender_id in self.delivered_neighbour[message_id] :  #if msg is from a delivered neighbour, it can be dsicarded
+            
+            MD4_log = f"[Node {self.node_id}] received a msg from delivered neighbour, can be discarded"
+            self.append_output(MD4_log)
+            print(MD4_log)
+            return
+
+
+        if self.MD3 and not msg_path:   #if msg_path is empty, indicate the sender has delivered the msg (#MD2)
+
+            self.delivered_neighbour.setdefault(message_id, set()).add(sender_id)
+            #remove all paths in the path that contains the sender since its delivered and can be discarded
+            updated_paths = (path for path in self.message_paths[message_id] if sender_id in path) 
+            self.message_paths = updated_paths
+
+            MD3_log = f"[Node {self.node_id} received msg with empty path from delivered node {sender_id}]"
+            self.append_output(MD3_log)
+            print(MD3_log)
+
         try:
-            recieved_log = f"[Node {self.node_id}] Got message: {message_id} from node: {sender_id} with path {payload.path}"
+            recieved_log = f"[Node {self.node_id}] Got message: {message_id} from node: {sender_id} with path {new_path}"
             self.append_output(recieved_log)
             print(recieved_log)
 
-            new_path = payload.path + [sender_id]
+            new_path = msg_path
+            if sender_id != source_id:
+                new_path = msg_path + [sender_id]
 
             #self.paths.add(tuple(new_path))
             self.message_paths.setdefault(message_id, set()).add(tuple(new_path))
 
-            for neighbor in self.get_peers():
-                neighbor_id = self.node_id_from_peer(neighbor)
-                if neighbor_id != self.node_id and neighbor_id not in new_path:
-
-                    msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message_id}"
-                    self.append_output(msg_log)
-
-                    print(msg_log)
-
-                    self.ez_send(neighbor, DolevMessage(payload.message, message_id, new_path))
+            #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
+            if self.MD1 and not self.is_malicious and not self.is_delivered[message_id] and sender_id == source_id:
+                MD1_log = f"[Node] {self.node_id} is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
+                self.append_output(MD1_log)
+                self.trigger_delivery(payload)
 
             #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
-            
-            if self.MD1 and not self.is_malicious and not self.is_delivered[message_id]:
-                pass
 
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
-            if not self.is_malicious and not self.is_delivered.get(payload.message_id) and self.find_disjoint_paths_ok(payload.message_id):
+            if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
 
                 disjoint_path_find_log = f"Enough node-disjoint paths found, message will be delivered"
@@ -214,6 +238,35 @@ class BasicDolevRC(DistributedAlgorithm):
                 print(disjoint_path_find_log)
 
                 self.trigger_delivery(payload)
+
+            #all node that can be skipped
+            node_to_skip = set(new_path).update([source_id, self.node_id])
+
+            if self.MD3:
+                node_to_skip.update(self.delivered_neighbour[message_id])
+
+            # MD.2 If a process p has delivered a message, then it can discard all the related
+            # paths and relay the content only with an empty path to all of its neighbors.
+            if self.MD2 and self.is_delivered[message_id] :
+                new_path = []
+                self.message_paths[message_id] = set()
+
+            for neighbor in self.get_peers():
+                neighbor_id = self.node_id_from_peer(neighbor)
+
+                # MD2 
+                if self.is_delivered[message_id] and len(new_path) != 0 :
+                    MD2_log = f"[MD2 condition met, msg {message_id} delivered, it will not send it to its neighbour]"
+                    self.append_output(MD2_log)
+                    break
+
+                if neighbor_id not in node_to_skip:
+                    msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message_id}"
+                    self.append_output(msg_log)
+
+                    print(msg_log)
+
+                    self.ez_send(neighbor, DolevMessage(payload.message, message_id,source_id,new_path))
            
         except Exception as e:
             print(f"Error in on_message: {e}")
