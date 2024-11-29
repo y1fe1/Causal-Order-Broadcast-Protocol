@@ -14,7 +14,7 @@ from ..system.da_types import ConnectionMessage
 
 
 class DolevConfig:
-    def __init__(self, starter_nodes=[1, 0, 2, 4], f = 2, malicious_nodes=[7, 8]):
+    def __init__(self, starter_nodes=[1, 6, 0], f = 2, malicious_nodes=[6]):
         self.starter_nodes = starter_nodes
         self.f = f
         self.malicious_nodes = malicious_nodes
@@ -66,11 +66,11 @@ class BasicDolevRC(DistributedAlgorithm):
         self.message_broadcast_cnt = 0
 
         #optimization control vairable
-        self.MD1 = False
-        self.MD2 = False
-        self.MD3 = False
-        self.MD4 = False
-        self.MD5 = False
+        self.MD1 = True
+        self.MD2 = True
+        self.MD3 = True
+        self.MD4 = True
+        self.MD5 = True
 
         self.add_message_handler(DolevMessage, self.on_message)
         
@@ -78,7 +78,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
     def generate_message_id(self, msg: str) -> int:
         self.message_broadcast_cnt += 1
-        return self.node_id * 37 + self.message_broadcast_cnt + hash(msg)
+        return self.node_id * 169 + self.message_broadcast_cnt * 13 + (hash(msg) % 997)
     
     def generate_message(self) -> DolevMessage:
         msg =  ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
@@ -96,18 +96,19 @@ class BasicDolevRC(DistributedAlgorithm):
         
         return DolevMessage(msg,id,self.node_id,[])
     
-    def mal_modify_msg(self, payload) ->  DolevMessage:
+    def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
 
         if payload:
             original_msg = payload.message
-            payload.message = f"fake behaviour set on: {original_msg}"
-            payload.id = self.generate_message_id(payload.message)
+            fake_message = f"fake behaviour set on: {original_msg}"
+            fake_id = hash(fake_message) # self.generate_message_id(fake_message)
+
         
             fake_msg_log = f"[Malicious Node {self.node_id}] tampered the original msg"
             self.append_output(fake_msg_log)
             print(fake_msg_log)
 
-            return payload
+            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path)
 
     def execute_mal_process(self, msg) -> DolevMessage:
 
@@ -133,6 +134,7 @@ class BasicDolevRC(DistributedAlgorithm):
     async def on_start(self):
         if self.node_id in self.malicious_nodes:
             self.is_malicious = True
+            print(f"Hi I am malicious {self.node_id}")
 
         if self.node_id in self.starter_nodes:
             await self.on_start_as_starter()
@@ -200,16 +202,18 @@ class BasicDolevRC(DistributedAlgorithm):
 
     @message_wrapper(DolevMessage)
     async def on_message(self, peer: Peer, payload: DolevMessage) -> None:
+        self.is_malicious = (self.node_id in self.malicious_nodes)
 
         sender_id = self.node_id_from_peer(peer)
         source_id, message_id, msg_path = payload.source_id,payload.message_id,payload.path
 
         # if the node is malicious, it will modify the msg
         if self.is_malicious and (self.node_id not in self.starter_nodes):
-            payload = self.execute_mal_process(payload)
+            new_payload = self.execute_mal_process(payload)
+        else: 
+            new_payload = DolevMessage(payload.message, payload.message_id, payload.source_id, payload.path)
 
-
-        if self.MD5 and self.is_delivered[message_id]:  #if msg is delivered already, it can be discarded
+        if self.MD5 and self.is_delivered.get(message_id):  #if msg is delivered already, it can be discarded
 
             MD5_log = f"[Node {self.node_id}] received an already delivered, can be discarded"
             self.append_output(MD5_log)
@@ -217,7 +221,7 @@ class BasicDolevRC(DistributedAlgorithm):
             
             return
 
-        if self.MD4 and sender_id in self.delivered_neighbour[message_id] :  #if msg is from a delivered neighbour, it can be dsicarded
+        if self.MD4 and self.delivered_neighbour.get(message_id) and sender_id in self.delivered_neighbour.get(message_id) :  #if msg is from a delivered neighbour, it can be dsicarded
             
             MD4_log = f"[Node {self.node_id}] received a msg from delivered neighbour, can be discarded"
             self.append_output(MD4_log)
@@ -229,38 +233,37 @@ class BasicDolevRC(DistributedAlgorithm):
 
             self.delivered_neighbour.setdefault(message_id, set()).add(sender_id)
             #remove all paths in the path that contains the sender since its delivered and can be discarded
-            updated_paths = (path for path in self.message_paths[message_id] if sender_id in path) 
-            self.message_paths = updated_paths
+            if self.message_paths.get(message_id):
+                updated_paths = set(tuple([path for path in self.message_paths.get(message_id) if sender_id in path]))
+                self.message_paths[message_id] = updated_paths
 
             MD3_log = f"[Node {self.node_id} received msg with empty path from delivered node {sender_id}]"
             self.append_output(MD3_log)
             print(MD3_log)
 
         try:
-            new_path = msg_path
-            if sender_id != source_id:
-                new_path = msg_path + [sender_id]
+            new_path = msg_path + [sender_id]
 
-            recieved_log = f"[Node {self.node_id}] Got message: {message_id} from node: {sender_id} with path {new_path}"
+            recieved_log = f"[Node {self.node_id}] Got message: {new_payload.message} from node: {sender_id} with path {new_path}"
             self.append_output(recieved_log)
             print(recieved_log)
 
-            #self.paths.add(tuple(new_path))
-            if self.metrics.start_time.get(payload.message_id, 0) == 0:
+            if self.metrics.start_time.get(new_payload.message_id, 0) == 0:
                 self.metrics_init()
-                self.set_start_time(payload.message_id)
+                self.set_start_time(new_payload.message_id)
             
-            self.message_paths.setdefault(payload.message_id, set()).add(tuple(new_path))
+            self.message_paths.setdefault(new_payload.message_id, set()).add(tuple(new_path))
 
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
-            if self.MD1 and not self.is_malicious and not self.is_delivered[message_id] and sender_id == source_id:
+            if self.MD1 and not self.is_malicious and not self.is_delivered.get(message_id) and sender_id == source_id:
                 MD1_log = f"[Node] {self.node_id} is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
                 self.append_output(MD1_log)
-                self.trigger_delivery(payload)
+                self.trigger_delivery(new_payload)
 
             #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
 
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
+
             if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 self.metrics.message_count = len(self._message_history)
@@ -269,18 +272,19 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.append_output(disjoint_path_find_log)
                 print(disjoint_path_find_log)
 
-                self.trigger_delivery(payload)
+                self.trigger_delivery(new_payload)
 
             #all node that can be skipped
             node_to_skip = set(new_path)
             node_to_skip.update([source_id, self.node_id])
 
             if self.MD3:
-                node_to_skip.update(self.delivered_neighbour[message_id])
+                if self.delivered_neighbour.get(message_id):
+                    node_to_skip.update(self.delivered_neighbour.get(message_id))
 
             # MD.2 If a process p has delivered a message, then it can discard all the related
             # paths and relay the content only with an empty path to all of its neighbors.
-            if self.MD2 and self.is_delivered[message_id] :
+            if self.MD2 and self.is_delivered.get(message_id) :
                 new_path = []
                 self.message_paths[message_id] = set()
 
@@ -294,18 +298,22 @@ class BasicDolevRC(DistributedAlgorithm):
                     break
 
                 if neighbor_id not in node_to_skip:
-                    msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message_id}"
+                    msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message}"
                     self.append_output(msg_log)
 
                     print(msg_log)
 
-                    self.ez_send(neighbor, DolevMessage(payload.message, message_id,source_id,new_path))
+                    self.ez_send(neighbor, DolevMessage(new_payload.message, new_payload.message_id, source_id, new_path))
            
         except Exception as e:
             print(f"Error in on_message: {e}")
             raise e
 
     def trigger_delivery(self, message: DolevMessage):
+        if self.is_malicious:
+            print("I am malicious!!!! Why can I deliver!")
+            if self.node_id == message.source_id:
+                print("Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
 
@@ -318,16 +326,18 @@ class BasicDolevRC(DistributedAlgorithm):
 
         self.save_algorithm_output()
         self.save_node_stats()
-
-        self.is_delivered[message.message_id] = True
         
         self.get_end_time_and_latency(message.message_id)
         self.write_metrics()
 
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
+        # TODO: Very likely to be wrong and thus causing nodes to not deliver a correct message.
+
         if not self.message_paths.get(msg_id):
             return False
+        
+        # print(f"The paths to be checked: {self.message_paths.get(msg_id)}")
         disjoint_paths = []
         used_nodes = set()
         paths_sorted = sorted(self.message_paths.get(msg_id), key=len)
