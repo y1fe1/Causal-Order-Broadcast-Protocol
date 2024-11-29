@@ -1,5 +1,6 @@
 import asyncio
 import random
+from threading import Lock
 import time
 from typing import Dict
 
@@ -14,7 +15,7 @@ from ..system.da_types import ConnectionMessage
 
 
 class DolevConfig:
-    def __init__(self, starter_nodes=[1, 0, 2, 4], f = 2, malicious_nodes=[7, 8]):
+    def __init__(self, starter_nodes=[1, 0, 2], f = 2, malicious_nodes=[7, 8]):
         self.starter_nodes = starter_nodes
         self.f = f
         self.malicious_nodes = malicious_nodes
@@ -32,11 +33,11 @@ class DolevMetrics:
     node_count: int = 0
     byzantine_count: int = 0
     connectivity: int = 0
-    message_count: int = 0
-    last_message_count: int = 0
+    message_count_dict: Dict[int, int] = {}
     start_time: Dict[int, float] = {}
     end_time: Dict[int, float] = {}
     latency: float = 0.0
+    message_count_lock = Lock()
 
 class BasicDolevRC(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings, parameters: DolevConfig=DolevConfig()) -> None:
@@ -138,7 +139,7 @@ class BasicDolevRC(DistributedAlgorithm):
             await self.on_start_as_starter()
         print(f"[DEBUG] Node {self.node_id} starting with starter_nodes={self.starter_nodes}")
 
-        # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
+        print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
         if self.node_id == self.starting_node:
             # Checking if all node states are ready
             all_ready = all([x == "ready" for x in self.node_states.values()])
@@ -241,9 +242,11 @@ class BasicDolevRC(DistributedAlgorithm):
             if sender_id != source_id:
                 new_path = msg_path + [sender_id]
 
-            recieved_log = f"[Node {self.node_id}] Got message: {message_id} from node: {sender_id} with path {new_path}"
-            self.append_output(recieved_log)
+            recieved_log = f"[Node {self.node_id}] Got message from node: {sender_id} with path {payload.path}"
+            # self.append_output(recieved_log)
             print(recieved_log)
+            self.increment_message_count(payload.message_id)
+            new_path = payload.path + [sender_id]
 
             #self.paths.add(tuple(new_path))
             if self.metrics.start_time.get(payload.message_id, 0) == 0:
@@ -261,8 +264,8 @@ class BasicDolevRC(DistributedAlgorithm):
             #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
 
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
-            if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
-                # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
+            if not self.is_malicious and not self.is_delivered.get(payload.message_id) and self.find_disjoint_paths_ok(payload.message_id):
+                print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 self.metrics.message_count = len(self._message_history)
                 
                 disjoint_path_find_log = f"Enough node-disjoint paths found, message will be delivered"
@@ -322,7 +325,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.is_delivered[message.message_id] = True
         
         self.get_end_time_and_latency(message.message_id)
-        self.write_metrics()
+        self.write_metrics(message.message_id)
 
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
@@ -355,9 +358,8 @@ class BasicDolevRC(DistributedAlgorithm):
 
         self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time
         
-    def write_metrics(self):
-        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.connectivity},{self.metrics.latency:.3f},{self.metrics.message_count - self.metrics.last_message_count}"
-        self.metrics.last_message_count = self.metrics.message_count
+    def write_metrics(self, msg_id):
+        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.connectivity},{self.metrics.latency:.5f},{self.metrics.message_count_dict.get(msg_id, 0)}"
         with open("output/metrics_output.csv", "a") as f:
             f.write(metrics_log + "\n")
         
@@ -365,4 +367,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.metrics.node_count = len(self.nodes)
         self.metrics.byzantine_count = len(self.malicious_nodes)
         self.metrics.connectivity = len(self.get_peers())
-        self.metrics.message_count = 0
+        
+    def increment_message_count(self, msg_id):
+        current_count = self.metrics.message_count_dict.get(msg_id, 0)
+        self.metrics.message_count_dict[msg_id] = current_count + 1
