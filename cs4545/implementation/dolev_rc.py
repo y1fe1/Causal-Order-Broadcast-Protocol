@@ -14,7 +14,7 @@ from ..system.da_types import ConnectionMessage
 
 
 class DolevConfig:
-    def __init__(self, starter_nodes=[1, 6, 0], f = 2, malicious_nodes=[6]):
+    def __init__(self, starter_nodes=[1, 6, 0, 2], f = 2, malicious_nodes=[0]):
         self.starter_nodes = starter_nodes
         self.f = f
         self.malicious_nodes = malicious_nodes
@@ -264,7 +264,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
 
-            if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
+            if not self.is_malicious and not self.is_delivered.get(message_id) and self.new_find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 self.metrics.message_count = len(self._message_history)
                 
@@ -355,6 +355,38 @@ class BasicDolevRC(DistributedAlgorithm):
                     print(path_log)
                     return True
         return False
+
+    def new_find_disjoint_paths_ok(self, msg_id) -> bool:
+        f = self.f
+        sets = list(self.message_paths.get(msg_id))
+        for path in sets:
+            path = path[1:]
+        universe = set()
+        for s in sets:
+            universe.update(s)
+        universe = sorted(universe)
+        
+        element_to_bit = {el: 1 << i for i, el in enumerate(universe)}
+        bitmasks = []
+        for s in sets:
+            bitmask = 0
+            for el in s:
+                bitmask |= element_to_bit[el]
+            bitmasks.append(bitmask)
+        best_result = []
+        def backtrack(index, current_subset, current_mask):
+            nonlocal best_result
+            if index == len(sets):
+                if len(current_subset) > len(best_result):
+                    best_result = current_subset[:]
+                return
+            backtrack(index + 1, current_subset, current_mask)
+            if (current_mask & bitmasks[index]) == 0:
+                current_subset.append(sets[index])
+                backtrack(index + 1, current_subset, current_mask | bitmasks[index])
+                current_subset.pop()
+        backtrack(0, [], 0)
+        return len(best_result) > f
 
     def set_start_time(self, msg_id):
         self.metrics.start_time[msg_id] = time.time()
