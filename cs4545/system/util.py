@@ -15,13 +15,15 @@ def cli():
 @click.argument('num_nodes', type=int)
 @click.argument('topology_file', type=str, default='topologies/echo.yaml')
 @click.argument('algorithm', type=str, default='echo')
+@click.option('--topology', type=str, default='fully')
+@click.option('--connectivity', type=int, default=-1)
 @click.option('--template_file', type=str,  default='docker-compose.template.yml')
 @click.option('--overwrite_topology',is_flag=True, help='Overwrite the topology file. Useful for topologies that can be adjusted dynamically such as rings. Do not use this option if you have a static topology file that you want the preserve!')
-def compose(num_nodes, topology_file, algorithm, template_file, overwrite_topology):
-    prepare_compose_file(num_nodes, topology_file, algorithm, template_file, overwrite_topology=overwrite_topology)
+def compose(num_nodes, topology_file, algorithm, topology, connectivity, template_file, overwrite_topology):
+    prepare_compose_file(num_nodes, topology_file, algorithm, topology, connectivity, template_file, overwrite_topology=overwrite_topology)
 
 
-def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, location='cs4545', overwrite_topology = False):
+def prepare_compose_file(num_nodes, topology_file, algorithm, topology, connectivity, template_file, location='cs4545', overwrite_topology = False):
     with open(template_file, 'r') as f:
         content = yaml.safe_load(f)
 
@@ -46,9 +48,21 @@ def prepare_compose_file(num_nodes, topology_file, algorithm, template_file, loc
             n['environment']['LOCATION'] = location
             nodes[f'node{i}'] = n
 
-            # Create a ring topology
+            # Create topology
             # It will only be used when the overwrite_topology is set to True
-            connections[i] = [(i + 1) % num_nodes, (i - 1) % num_nodes]
+            if topology == 'ring':
+                connections[i] = [(i + 1) % num_nodes, (i - 1) % num_nodes]
+            elif topology == 'fully':
+                if connectivity <= 0:
+                    connections[i] = [j for j in range(num_nodes) if j != i]
+                else:
+                    connectivity = min(connectivity, num_nodes - 1)
+                    connections[i] = []
+                    for j in range(1, connectivity //2 + 1):
+                        before = (i + j) % num_nodes
+                        after = (i - j) % num_nodes
+                        connections[i].extend([before, after])
+                    connections[i].sort()
 
         content['services'] = nodes
 
