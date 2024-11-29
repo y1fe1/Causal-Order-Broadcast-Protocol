@@ -234,7 +234,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.delivered_neighbour.setdefault(message_id, set()).add(sender_id)
             #remove all paths in the path that contains the sender since its delivered and can be discarded
             if self.message_paths.get(message_id):
-                updated_paths = set(tuple([path for path in self.message_paths.get(message_id) if sender_id in path]))
+                updated_paths = set(tuple([path for path in self.message_paths.get(message_id) if sender_id not in path]))
                 self.message_paths[message_id] = updated_paths
 
             MD3_log = f"[Node {self.node_id} received msg with empty path from delivered node {sender_id}]"
