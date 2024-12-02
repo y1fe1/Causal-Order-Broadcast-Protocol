@@ -58,10 +58,12 @@ def prepare_compose_file(num_nodes, topology_file, algorithm, topology, connecti
                 else:
                     connectivity = min(connectivity, num_nodes - 1)
                     connections[i] = []
-                    for j in range(1, connectivity //2 + 1):
+                    for j in range(1, (connectivity // 2) + 1):
                         before = (i + j) % num_nodes
                         after = (i - j) % num_nodes
                         connections[i].extend([before, after])
+                    if connectivity % 2 == 1:
+                        connections[i].append((i + (connectivity // 2) + 1) % num_nodes)
                     connections[i].sort()
 
         content['services'] = nodes
