@@ -32,6 +32,7 @@ class DolevMessage:
 class DolevMetrics:
     node_count: int = 0
     byzantine_count: int = 0
+    delivered_cnt: int = 0
     connectivity: int = 0
     message_count: int = 0
     last_message_count: int = 0
@@ -322,6 +323,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 print("Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
+        self.metrics.delivered_cnt+=1
 
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
         self.append_output(deliver_log)
@@ -404,7 +406,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time
         
     def write_metrics(self):
-        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.connectivity},{self.metrics.latency*1000:.03f},{self.metrics.message_count - self.metrics.last_message_count},{len(self._message_history)},{self._message_history.bytes_sent()}"
+        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.delivered_cnt},{self.metrics.connectivity},{self.metrics.latency*1000:.03f},{self.metrics.message_count - self.metrics.last_message_count},{len(self._message_history)},{self._message_history.bytes_sent()}"
         self.metrics.last_message_count = self.metrics.message_count
         
         with open("output/metrics_output_conn"+str(self.metrics.connectivity)+".csv", "a") as f:
