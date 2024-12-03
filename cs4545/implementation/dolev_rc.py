@@ -404,16 +404,10 @@ class BasicDolevRC(DistributedAlgorithm):
         self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time
         
     def write_metrics(self):
-        metrics_log = f"{self.node_id},
-                        {self.metrics.node_count},
-                        {self.metrics.byzantine_count},
-                        {self.metrics.connectivity},
-                        {self.metrics.latency:.3f},
-                        {self.metrics.message_count - self.metrics.last_message_count},
-                        {len(self._message_history)},
-                        {self._message_history.bytes_sent()}"
+        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.connectivity},{self.metrics.latency*1000:.03f},{self.metrics.message_count - self.metrics.last_message_count},{len(self._message_history)},{self._message_history.bytes_sent()}"
         self.metrics.last_message_count = self.metrics.message_count
-        with open("output/metrics_output.csv", "a") as f:
+        
+        with open("output/metrics_output_conn"+str(self.metrics.connectivity)+".csv", "a") as f:
             f.write(metrics_log + "\n")
         
     def metrics_init(self):
