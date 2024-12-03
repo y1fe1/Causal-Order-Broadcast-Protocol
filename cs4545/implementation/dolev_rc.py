@@ -1,4 +1,5 @@
 import asyncio
+import os
 import random
 import time
 from typing import Dict
@@ -14,7 +15,7 @@ from ..system.da_types import ConnectionMessage
 
 
 class DolevConfig:
-    def __init__(self, starter_nodes=[1, 6, 0, 2], f = 2, malicious_nodes=[0]):
+    def __init__(self, starter_nodes=[1, 6, 0, 2], f = 0, malicious_nodes=[]):
         self.starter_nodes = starter_nodes
         self.f = f
         self.malicious_nodes = malicious_nodes
@@ -168,9 +169,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
-        print(f"[DEBUG] Node {self.node_id} entering on_broadcast")
-        print(f"[DEBUG] Peers count: {len(self.get_peers())}")
-
+        print(f"[DEBUG] Node {self.node_id} entering on_broadcast, Peers count: {len(self.get_peers())}")
         print(f"Node {self.node_id} is starting Dolev's protocol")
         
         peers = self.get_peers()
@@ -198,6 +197,7 @@ class BasicDolevRC(DistributedAlgorithm):
             print(f"Error in on_broadcast: {e}")
             raise e
         
+        print(f"[Node {self.node_id}] delivered through Source Node")
         self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -253,18 +253,24 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.set_start_time(new_payload.message_id)
             
             self.message_paths.setdefault(new_payload.message_id, set()).add(tuple(new_path))
-
+            print(f'Node {self.node_id}, {payload.message_id}message paths: {self.message_paths}')
+            
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
             if self.MD1 and not self.is_malicious and not self.is_delivered.get(message_id) and sender_id == source_id:
                 MD1_log = f"[Node] {self.node_id} is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
                 self.append_output(MD1_log)
+                print(MD1_log)
+                print(f'Node {self.node_id} delivered through MD1')
                 self.trigger_delivery(new_payload)
 
             #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
 
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
 
-            if not self.is_malicious and not self.is_delivered.get(message_id) and self.new_find_disjoint_paths_ok(message_id):
+            # if not self.is_malicious and not self.is_delivered.get(message_id) and self.new_find_disjoint_paths_ok(message_id):
+
+            
+            if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 self.metrics.message_count = len(self._message_history)
                 
@@ -359,8 +365,8 @@ class BasicDolevRC(DistributedAlgorithm):
     def new_find_disjoint_paths_ok(self, msg_id) -> bool:
         f = self.f
         sets = list(self.message_paths.get(msg_id))
-        for path in sets:
-            path = path[1:]
+        # for path in sets:
+        #     path = path[1:]
         universe = set()
         for s in sets:
             universe.update(s)
