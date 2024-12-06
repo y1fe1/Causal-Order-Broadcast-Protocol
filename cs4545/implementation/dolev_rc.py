@@ -1,4 +1,5 @@
 import asyncio
+import os
 import random
 import time
 from typing import Dict
@@ -14,7 +15,7 @@ from ..system.da_types import ConnectionMessage
 
 
 class DolevConfig:
-    def __init__(self, starter_nodes=[1, 6, 0, 2], f = 2, malicious_nodes=[0]):
+    def __init__(self, starter_nodes=[1, 6, 0, 2], f = 0, malicious_nodes=[]):
         self.starter_nodes = starter_nodes
         self.f = f
         self.malicious_nodes = malicious_nodes
@@ -31,6 +32,7 @@ class DolevMessage:
 class DolevMetrics:
     node_count: int = 0
     byzantine_count: int = 0
+    delivered_cnt: int = 0
     connectivity: int = 0
     message_count: int = 0
     last_message_count: int = 0
@@ -168,9 +170,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
-        print(f"[DEBUG] Node {self.node_id} entering on_broadcast")
-        print(f"[DEBUG] Peers count: {len(self.get_peers())}")
-
+        print(f"[DEBUG] Node {self.node_id} entering on_broadcast, Peers count: {len(self.get_peers())}")
         print(f"Node {self.node_id} is starting Dolev's protocol")
         
         peers = self.get_peers()
@@ -198,6 +198,7 @@ class BasicDolevRC(DistributedAlgorithm):
             print(f"Error in on_broadcast: {e}")
             raise e
         
+        print(f"[Node {self.node_id}] delivered through Source Node")
         self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -253,18 +254,24 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.set_start_time(new_payload.message_id)
             
             self.message_paths.setdefault(new_payload.message_id, set()).add(tuple(new_path))
-
+            print(f'Node {self.node_id}, {payload.message_id}message paths: {self.message_paths}')
+            
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
             if self.MD1 and not self.is_malicious and not self.is_delivered.get(message_id) and sender_id == source_id:
                 MD1_log = f"[Node] {self.node_id} is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
                 self.append_output(MD1_log)
+                print(MD1_log)
+                print(f'Node {self.node_id} delivered through MD1')
                 self.trigger_delivery(new_payload)
 
             #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
 
             #if the node is not malicious and not delivered and there is f+1 disjoint_path_
 
-            if not self.is_malicious and not self.is_delivered.get(message_id) and self.new_find_disjoint_paths_ok(message_id):
+            # if not self.is_malicious and not self.is_delivered.get(message_id) and self.new_find_disjoint_paths_ok(message_id):
+
+            
+            if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 self.metrics.message_count = len(self._message_history)
                 
@@ -316,6 +323,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 print("Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
+        self.metrics.delivered_cnt+=1
 
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
         self.append_output(deliver_log)
@@ -359,8 +367,8 @@ class BasicDolevRC(DistributedAlgorithm):
     def new_find_disjoint_paths_ok(self, msg_id) -> bool:
         f = self.f
         sets = list(self.message_paths.get(msg_id))
-        for path in sets:
-            path = path[1:]
+        # for path in sets:
+        #     path = path[1:]
         universe = set()
         for s in sets:
             universe.update(s)
@@ -398,9 +406,10 @@ class BasicDolevRC(DistributedAlgorithm):
         self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time
         
     def write_metrics(self):
-        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.connectivity},{self.metrics.latency:.3f},{self.metrics.message_count - self.metrics.last_message_count}"
+        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.delivered_cnt},{self.metrics.connectivity},{self.metrics.latency*1000:.03f},{self.metrics.message_count - self.metrics.last_message_count},{len(self._message_history)},{self._message_history.bytes_sent()}"
         self.metrics.last_message_count = self.metrics.message_count
-        with open("output/metrics_output.csv", "a") as f:
+        
+        with open("output/metrics_output_conn"+str(self.metrics.connectivity)+".csv", "a") as f:
             f.write(metrics_log + "\n")
         
     def metrics_init(self):
