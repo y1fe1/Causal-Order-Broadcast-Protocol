@@ -1,5 +1,8 @@
+import datetime
+import logging
 import random
 import math
+
 
 from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
@@ -8,12 +11,16 @@ from ipv8.types import Peer
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from hashlib import sha256
 
+from cs4545.implementation.node_log import message_logger, OutputMetrics
+
 class BrachaConfig:
-    def __init__(self, broadcasters = [1, 2], malicious_nodes = [3], f = 2, N = 10):
+    def __init__(self, broadcasters = [1, 2], malicious_nodes = [3], f = 2, N = 10, msg_level = logging.DEBUG):
         self.broadcasters = broadcasters
         self.malicious_nodes = malicious_nodes
         self.f = f
         self.N = N
+
+        self.msg_level = msg_level
 
 
 class BrachaMessage:
@@ -44,9 +51,11 @@ class BrachaRB(DistributedAlgorithm):
 
         self.f = parameters.f
         self.N = parameters.N
+
+        self.connectivity = len(self.get_peers())
+
         self.broadcasters = parameters.broadcasters
         self.malicious_nodes = parameters.malicious_nodes
-        self.DEBUG = True
         
         self.echo_count:    dict[str, int]  = {}   # message_id -> echo count
         self.ready_count:   dict[str, int]  = {}   # message_id -> ready count
@@ -58,21 +67,40 @@ class BrachaRB(DistributedAlgorithm):
         self.add_message_handler(EchoMessage, self.on_echo)
         self.add_message_handler(ReadyMessage, self.on_ready)
 
+        node_outputMetrics = OutputMetrics(self)
+        self.algortihm_output_file = self.gen_output_file_path()
+
+        self.msg_log = message_logger(self.node_id,parameters.msg_level, self.algortihm_output_file,node_outputMetrics)
+
+    def gen_output_file_path(self, test_name: str ="Bracha_Test") : 
+
+        '''
+            To be fair this should be part of the parent class function to Insert
+            This function will set the output file to be output/{test_name}_{time_stamp}/node-{node_id}.out
+        '''
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        subdirectory_name = f"{test_name}_{timestamp}"
+
+        return (self.algorithm_output_file.parent 
+                                      / subdirectory_name
+                                      / self.algortihm_output_file.name)
+
     def generate_message(self) -> SendMessage:
         msg =  ''.join([random.choice(['uk', 'pk', 'mkk', 'fk']) for _ in range(6)])
         id = sha256(msg.encode()).hexdigest()
         return SendMessage(msg, id)
     
     async def on_start(self):
-        if self.DEBUG:
-            print(f'Node {self.node_id} is starting.')
+       
+        self.msg_log.log("INFO",  f'Node {self.node_id} is starting.')
 
         if self.node_id in self.broadcasters:
             await self.on_broadcast()
 
     async def on_broadcast(self) -> None:
-        if self.DEBUG:
-            print(f'Node {self.node_id} is broadcasting.')
+        
+        self.msg_log.log("INFO",f'Node {self.node_id} is broadcasting.')
         
         message = self.generate_message()
 
@@ -81,16 +109,16 @@ class BrachaRB(DistributedAlgorithm):
 
     @message_wrapper(SendMessage)
     async def on_send(self, peer: Peer, payload: SendMessage):
-        if self.DEBUG:
-            print(f'Received a SEND  message: {payload.message_id}.')
+        
+        self.msg_log.log("DEBUG", f'Received a SEND  message: {payload.message_id}.')
 
         for p in self.get_peers():
             self.ez_send(p, EchoMessage(payload.message, payload.message_id))
 
     @message_wrapper(EchoMessage)
     async def on_echo(self, peer: Peer, payload: EchoMessage):
-        if self.DEBUG:
-            print(f'Received an ECHO message: {payload.message_id}.')
+        
+        self.msg_log.log("DEBUG", f'Received an ECHO message: {payload.message_id}.')
         
         self.echo_count.setdefault(payload.message_id, 0)
         self.echo_count[payload.message_id] += 1
@@ -99,15 +127,17 @@ class BrachaRB(DistributedAlgorithm):
             self.echo_count[payload.message_id] >= math.ceil((self.f + self.N + 1) / 2):
             self.is_ready_sent.setdefault(payload.message_id, True)
             
-            if self.DEBUG:
-                print(f'Sent READY messages: {payload.message_id}')
+            
+            self.msg_log.log("DEBUG",f'Sent READY messages: {payload.message_id}')
+
             for p in self.get_peers():
                 self.ez_send(p, ReadyMessage(payload.message, payload.message_id))
             
     @message_wrapper(ReadyMessage)
     async def on_ready(self, peer: Peer, payload: ReadyMessage):
-        if self.DEBUG:
-            print(f'Received a READY message: {payload.message_id}.')
+
+        self.msg_log.log("DEBUG", f'Received a READY message: {payload.message_id}.')
+
         if not self.is_ready_sent.get(payload.message_id):
 
             self.ready_count.setdefault(payload.message_id, 0)
@@ -116,8 +146,8 @@ class BrachaRB(DistributedAlgorithm):
             if self.ready_count[payload.message_id] >= self.f + 1:
                 self.is_ready_sent.setdefault(payload.message_id, True)
 
-                if self.DEBUG:
-                    print(f'Sent READY messages: {payload.message_id}')
+                self.msg_log.log("DEBUG",f'Sent READY messages: {payload.message_id}')
+
                 for p in self.get_peers():
                     self.ez_send(p, ReadyMessage(payload.message, payload.message_id))
 
@@ -131,8 +161,8 @@ class BrachaRB(DistributedAlgorithm):
             self.trigger_delivery(payload)
 
     def trigger_delivery(self, payload: BrachaMessage):
-        if self.DEBUG:
-            print(f'Delivered a message: {payload.message_id}.')
+
+        self.msg_log.log("DEBUG",f'Delivered a message: {payload.message_id}.')
 
         
 
