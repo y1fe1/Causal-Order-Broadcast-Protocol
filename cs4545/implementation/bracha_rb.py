@@ -9,8 +9,8 @@ from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from hashlib import sha256
 
 class BrachaConfig:
-    def __init__(self, broadcasters = [1, 2], malicious_nodes = [3], f = 2, N = 10):
-        self.broadcasters = broadcasters
+    def __init__(self, broadcasters = {1:2, 2:1}, malicious_nodes = [3], f = 2, N = 10):
+        self.broadcasters = broadcasters            # broadcaster_id -> repeated_times
         self.malicious_nodes = malicious_nodes
         self.f = f
         self.N = N
@@ -67,8 +67,9 @@ class BrachaRB(DistributedAlgorithm):
         if self.DEBUG:
             print(f'Node {self.node_id} is starting.')
 
-        if self.node_id in self.broadcasters:
-            await self.on_broadcast()
+        if self.node_id in self.broadcasters.keys():
+            for _ in range(self.broadcasters[self.node_id]):
+                await self.on_broadcast()
 
     async def on_broadcast(self) -> None:
         if self.DEBUG:
