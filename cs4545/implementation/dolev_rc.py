@@ -57,7 +57,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.malicious_behaviour = None
 
         for mal_node in self.malicious_nodes:
-            if(mal_node in  self.starter_nodes):
+            if(mal_node in self.starter_nodes):
                 self.malicious_behaviour = "generate_fake_msg"
             else : 
                 self.malicious_behaviour = "modify_msg_id"
