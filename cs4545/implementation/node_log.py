@@ -106,9 +106,9 @@ class message_logger:
     async def flush(self):
 
         metrics_summary = f"{self.node_id},\
-                 {self.log_metrics.node_count},\
-                 {self.log_metrics.byzantine_count},\
-                 {self.log_metrics.connectivity},\
+                 {self.log_metrics.total_node_count},\
+                 {self.log_metrics.total_byzantine_count},\
+                 {self.log_metrics.total_connectivity},\
                  {self.log_metrics.delivered_msg_cnt},\
                  {self.log_metrics.latency:.3f},\
                  {self.log_metrics.message_count - self.log_metrics.last_message_count}"
