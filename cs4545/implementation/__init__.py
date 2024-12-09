@@ -1,6 +1,6 @@
 from .echo_algorithm import *
 from .ring_election import *
-from .dolev_rc import *
+from .dolev_rc_new import *
 from .bracha_rb import *
 
 def get_algorithm(name):

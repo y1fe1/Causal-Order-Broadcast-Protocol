@@ -102,12 +102,12 @@ class message_logger:
     # Write the log output to files \ this should occure every time a deliver event is triggered?
     async def flush(self):
 
-        metrics_summary = f"{self.node_id},
-                 {self.log_metrics.node_count},
-                 {self.log_metrics.byzantine_count},
-                 {self.log_metrics.connectivity},
-                 {self.log_metrics.delivered_msg_cnt},
-                 {self.log_metrics.latency:.3f},
+        metrics_summary = f"{self.node_id},\
+                 {self.log_metrics.node_count},\
+                 {self.log_metrics.byzantine_count},\
+                 {self.log_metrics.connectivity},\
+                 {self.log_metrics.delivered_msg_cnt},\
+                 {self.log_metrics.latency:.3f},\
                  {self.log_metrics.message_count - self.log_metrics.last_message_count}"
     
         self.log(LOG_LEVL.INFO, metrics_summary)

@@ -48,9 +48,8 @@ class BasicDolevRC(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings, parameters: MessageConfig=MessageConfig()) -> None:
         super().__init__(settings)
         
-        # if parameters.f != len(parameters.malicious_nodes):
-        #     print("Error: f should be equal to the length of malicious_nodes! Aborting......")
-        #     self.stop()
+        if parameters.f != len(parameters.malicious_nodes):
+            print("Warning: f should be equal to the length of malicious_nodes")
         
         self.N = parameters.N
         self.f = parameters.f
@@ -64,9 +63,9 @@ class BasicDolevRC(DistributedAlgorithm):
         self.malicious_behaviour = None
 
         for mal_node in self.malicious_nodes:
-            if(mal_node in  self.starter_nodes):
+            if(mal_node in self.starter_nodes):
                 self.malicious_behaviour = "generate_fake_msg"
-            else : 
+            else: 
                 self.malicious_behaviour = "modify_msg_id"
 
         self.is_delivered: dict[int, bool] = {}
@@ -206,15 +205,11 @@ class BasicDolevRC(DistributedAlgorithm):
         if self.is_malicious :
             max_broadcast_cnt = self.f
             message = self.execute_mal_process(message)
-
         else:
             max_broadcast_cnt = len(peers)
-
         try:
             for peer in peers[:max_broadcast_cnt]:
-
                 peer_id = self.node_id_from_peer(peer)
-
                 broad_cast_log = f"[Node {self.node_id}] Sent message : {message.message_id} to node {peer_id} in broadcast"
                 self.msg_log.log(LOG_LEVL.DEBUG,broad_cast_log)
                 
@@ -235,10 +230,7 @@ class BasicDolevRC(DistributedAlgorithm):
         source_id, message_id, msg_path = payload.source_id,payload.message_id,payload.path
 
         # if the node is malicious, it will modify the msg
-        if self.is_malicious and (self.node_id not in self.starter_nodes):
-            new_payload = self.execute_mal_process(payload)
-        else: 
-            new_payload = DolevMessage(payload.message, payload.message_id, payload.source_id, payload.path)
+        new_payload = self.generate_relay_message(payload)
 
         if self.MD5 and self.is_delivered.get(message_id):  #if msg is delivered already, it can be discarded
 
@@ -254,7 +246,6 @@ class BasicDolevRC(DistributedAlgorithm):
             self.append_output(MD4_log)
             print(MD4_log)
             return
-
 
         if self.MD3 and not msg_path:   #if msg_path is empty, indicate the sender has delivered the msg (#MD2)
 
@@ -275,10 +266,8 @@ class BasicDolevRC(DistributedAlgorithm):
             self.append_output(recieved_log)
             print(recieved_log)
 
-            if self.metrics.start_time.get(new_payload.message_id, 0) == 0:
-                self.metrics_init()
-                self.set_start_time(new_payload.message_id)
-            
+            self.set_metics_start_time(new_payload.message_id)
+
             self.message_paths.setdefault(new_payload.message_id, set()).add(tuple(new_path))
             print(f'Node {self.node_id}, {payload.message_id}message paths: {self.message_paths}')
             
@@ -325,7 +314,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 neighbor_id = self.node_id_from_peer(neighbor)
 
                 # MD2 
-                if self.is_delivered.get(message_id) and len(new_path) != 0 :
+                if self.MD2 and self.is_delivered.get(message_id) and len(new_path) != 0 :
                     MD2_log = f"[MD2 condition met, msg {message_id} delivered, it will not send it to its neighbour]"
                     self.append_output(MD2_log)
                     break
@@ -333,7 +322,6 @@ class BasicDolevRC(DistributedAlgorithm):
                 if neighbor_id not in node_to_skip:
                     msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message}"
                     self.append_output(msg_log)
-
                     print(msg_log)
 
                     self.ez_send(neighbor, DolevMessage(new_payload.message, new_payload.message_id, source_id, new_path))
@@ -342,6 +330,12 @@ class BasicDolevRC(DistributedAlgorithm):
             print(f"Error in on_message: {e}")
             raise e
 
+    def generate_relay_message(self, payload: DolevMessage) -> DolevMessage:
+        if self.is_malicious and (self.node_id not in self.starter_nodes):
+            return self.execute_mal_process(payload)
+        else: 
+            return DolevMessage(payload.message, payload.message_id, payload.source_id, payload.path)
+            
     async def trigger_delivery(self, message: DolevMessage):
         if self.is_malicious:
             self.msg_log.log(LOG_LEVL.WARNING, "I am malicious!!!! Why can I deliver!")
@@ -420,8 +414,10 @@ class BasicDolevRC(DistributedAlgorithm):
         backtrack(0, [], 0)
         return len(best_result) > f
 
-    def set_start_time(self, msg_id):
-        self.metrics.start_time[msg_id] = time.time()
+    def set_metics_start_time(self, msg_id):
+        if self.metrics.start_time.get(msg_id, 0) == 0:
+            self.metrics_init()
+            self.metrics.start_time[msg_id] = time.time()
         
     def get_end_time_and_latency(self, msg_id):
         self.metrics.end_time[msg_id] = time.time()

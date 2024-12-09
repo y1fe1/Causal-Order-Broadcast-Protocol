@@ -13,7 +13,7 @@ from hashlib import sha256
 
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from cs4545.implementation.dolev_rc_new import BasicDolevRC, MessageConfig,DolevMessage
-from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVL
+# from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVL
 
 class BrachaConfig(MessageConfig):
     def __init__(self, broadcasters = {1:2, 2:1}, malicious_nodes = [3],N = 10, msg_level = logging.DEBUG):
