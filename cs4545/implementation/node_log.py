@@ -39,7 +39,7 @@ class OutputMetrics:
         
 
 class message_logger:
-    def __init__(self, node_id, msg_log_level = LOG_LEVL.DEBUG, log_file_path: Path, outputMetrics: OutputMetrics):
+    def __init__(self, node_id, log_file_path: Path, outputMetrics: OutputMetrics, msg_log_level = LOG_LEVEL.DEBUG):
 
         self.node_id = node_id
         self.outputMetrics = outputMetrics
@@ -56,9 +56,7 @@ class message_logger:
 
         formatter = logging.Formatter('%(message)s')
         self.file_handler.setFormatter(formatter)
-
         self.logger.addHandler(self.file_handler)
-        self.log_metrics = outputMetrics
 
     def log(self, level, msg):
 

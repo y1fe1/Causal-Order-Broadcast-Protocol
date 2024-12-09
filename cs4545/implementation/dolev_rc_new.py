@@ -154,7 +154,7 @@ class BasicDolevRC(DistributedAlgorithm):
         return processed_mal_msg
     
     def init_logger(self):
-        self.msg_log = message_logger(self.node_id, self.msg_level, self.algortihm_output_file, self.node_outputMetrics)
+        self.msg_log = message_logger(self.node_id,self.algortihm_output_file, self.node_outputMetrics,self.msg_level)
 
     async def on_start(self):
         self.init_logger()

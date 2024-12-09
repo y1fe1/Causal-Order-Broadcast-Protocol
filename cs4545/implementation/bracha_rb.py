@@ -13,7 +13,7 @@ from hashlib import sha256
 
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from cs4545.implementation.dolev_rc_new import BasicDolevRC, MessageConfig, DolevMessage
-# from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVL
+from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
 
 class BrachaConfig(MessageConfig):
     def __init__(self, broadcasters = {1:2, 2:1}, malicious_nodes = [3],N = 10, msg_level = logging.DEBUG):
@@ -111,7 +111,7 @@ class BrachaRB(BasicDolevRC):
 
             self.is_echo_sent.setdefault(message_id, {})[self.node_id] = True
 
-            self.msg_log.log(LOG_LEVL.DEBUG, f'Sent ECHO messages: {message_id}')
+            self.msg_log.log(LOG_LEVEL.DEBUG, f'Sent ECHO messages: {message_id}')
 
         # Broadcast ECHO message to peers ⟨Dolev,Broadcast|[Echo,m]⟩
         super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
@@ -121,7 +121,7 @@ class BrachaRB(BasicDolevRC):
     @message_wrapper(SendMessage)
     async def on_send(self, peer: Peer, payload: SendMessage):
 
-        self.msg_log.log(LOG_LEVL.DEBUG, f'Received a SEND  message: {payload.message_id}.')
+        self.msg_log.log(LOG_LEVEL.DEBUG, f'Received a SEND  message: {payload.message_id}.')
 
         message_id = payload.message_id
         
@@ -141,7 +141,7 @@ class BrachaRB(BasicDolevRC):
         if not sent_ready and count >= threshold:
             self.is_ready_sent.setdefault(message_id, {})[self.node_id] = True
 
-            self.msg_log.log(LOG_LEVL.DEBUG, f'Sent READY messages: {message_id}')
+            self.msg_log.log(LOG_LEVEL.DEBUG, f'Sent READY messages: {message_id}')
         
         # Broadcast READY message to peers ⟨Dolev,Broadcast|[ready,m]⟩
         super().on_broadcast(ReadyMessage(payload.message, payload.message_id, self.node_id, []))
@@ -150,7 +150,7 @@ class BrachaRB(BasicDolevRC):
     @message_wrapper(EchoMessage)
     async def on_echo(self, peer: Peer, payload: EchoMessage):
         
-        self.msg_log.log(LOG_LEVL.DEBUG, f'Received an ECHO message: {payload.message_id}.')
+        self.msg_log.log(LOG_LEVEL.DEBUG, f'Received an ECHO message: {payload.message_id}.')
         
         self.echo_count.setdefault(payload.message_id, 0)
         self.echo_count[payload.message_id] += 1
@@ -164,7 +164,7 @@ class BrachaRB(BasicDolevRC):
     @message_wrapper(ReadyMessage)
     async def on_ready(self, peer: Peer, payload: ReadyMessage):
 
-        self.msg_log.log(LOG_LEVL.DEBUG, f'Received a READY message: {payload.message_id}.')
+        self.msg_log.log(LOG_LEVEL.DEBUG, f'Received a READY message: {payload.message_id}.')
 
         self.ready_count.setdefault(payload.message_id, 0)
         self.ready_count[payload.message_id] += 1
@@ -183,7 +183,7 @@ class BrachaRB(BasicDolevRC):
     # trigger ⟨Bracha,Deliver | s,m⟩
     async def trigger_delivery(self, payload: DolevMessage):
 
-        self.msg_log.log(LOG_LEVL.DEBUG,f'Delivered a message: {payload.message_id}.')
+        self.msg_log.log(LOG_LEVEL.DEBUG,f'Delivered a message: {payload.message_id}.')
 
         await self.msg_log.flush()
         
