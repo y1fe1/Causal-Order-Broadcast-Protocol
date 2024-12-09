@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Literal
 from cs4545.system.da_types import DistributedAlgorithm
 
-class LOG_LEVL(Enum):
+class LOG_LEVEL(Enum):
     INFO = logging.INFO
     DEBUG = logging.DEBUG
     WARNING = logging.WARNING
@@ -48,7 +48,11 @@ class message_logger:
         self.logger.setLevel(msg_log_level.value)
 
         self.file_handler = logging.FileHandler(self.log_file)
-        self.file_handler.setLevel(msg_log_level.value)
+        if isinstance(msg_log_level, LOG_LEVEL):
+            level = msg_log_level.value
+        else:
+            level = LOG_LEVEL.INFO.value
+        self.file_handler.setLevel(level)
 
         formatter = logging.Formatter('%(message)s')
         self.file_handler.setFormatter(formatter)
@@ -60,13 +64,13 @@ class message_logger:
 
         log_entry = f'{self.node_id} | {level} | {msg}'
 
-        if level == LOG_LEVL.INFO:
+        if level == LOG_LEVEL.INFO:
             self.logger.info(log_entry)
-        elif level == LOG_LEVL.DEBUG:
+        elif level == LOG_LEVEL.DEBUG:
             self.logger.debug(log_entry)
-        elif level == LOG_LEVL.WARNING:
+        elif level == LOG_LEVEL.WARNING:
             self.logger.warning(log_entry)
-        elif level == LOG_LEVL.ERROR:
+        elif level == LOG_LEVEL.ERROR:
             self.logger.error(log_entry)
         else:
             raise ValueError(f"Unknown log level: {level}")
@@ -110,7 +114,7 @@ class message_logger:
                  {self.log_metrics.latency:.3f},\
                  {self.log_metrics.message_count - self.log_metrics.last_message_count}"
     
-        self.log(LOG_LEVL.INFO, metrics_summary)
+        self.log(LOG_LEVEL.INFO, metrics_summary)
 
         await self.file_handler.flush()
         await self.output_metrics_to_csv(metrics_summary)

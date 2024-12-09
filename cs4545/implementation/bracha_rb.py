@@ -12,7 +12,7 @@ from ipv8.types import Peer
 from hashlib import sha256
 
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
-from cs4545.implementation.dolev_rc_new import BasicDolevRC, MessageConfig,DolevMessage
+from cs4545.implementation.dolev_rc_new import BasicDolevRC, MessageConfig, DolevMessage
 # from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVL
 
 class BrachaConfig(MessageConfig):
