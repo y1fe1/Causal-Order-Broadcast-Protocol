@@ -4,8 +4,7 @@ import os
 import random
 import time
 
-from typing import Dict
-from typing import List
+from typing import Dict,List
 
 from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
@@ -16,9 +15,10 @@ from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from ..system.da_types import ConnectionMessage
 
 class MessageConfig:
-    def __init__(self, broadcasters={1:2, 2:1}, malicious_nodes=[], N = 10, msg_level = LOG_LEVL.DEBUG):
+    def __init__(self, broadcasters={1:2, 2:1}, malicious_nodes: List[int]=[], N = 10, msg_level = LOG_LEVL.DEBUG):
         self.broadcasters = broadcasters
         self.malicious_nodes = malicious_nodes
+        self.N = N
         self.f = len(malicious_nodes)
 
 @dataclass(

@@ -5,14 +5,14 @@ import asyncio
 
 from enum import Enum
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Literal
 from cs4545.system.da_types import DistributedAlgorithm
 
 class LOG_LEVL(Enum):
-    INFO = 1
-    DEBUG = 2
-    WARNING = 3
-    ERROR = 4
+    INFO = logging.INFO
+    DEBUG = logging.DEBUG
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
 
 class OutputMetrics:
 
@@ -39,16 +39,16 @@ class OutputMetrics:
         
 
 class message_logger:
-    def __init__(self, node_id, msg_log_level, log_file_path: Path, outputMetrics: OutputMetrics):
+    def __init__(self, node_id, msg_log_level = LOG_LEVL.DEBUG, log_file_path: Path, outputMetrics: OutputMetrics):
 
         self.node_id = node_id
         self.outputMetrics = outputMetrics
         self.log_file = log_file_path
         self.logger = logging.getLogger(f'NodeLog-{self.node_id}')
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(msg_log_level.value)
 
         self.file_handler = logging.FileHandler(self.log_file)
-        self.file_handler.setLevel(msg_log_level)
+        self.file_handler.setLevel(msg_log_level.value)
 
         formatter = logging.Formatter('%(message)s')
         self.file_handler.setFormatter(formatter)

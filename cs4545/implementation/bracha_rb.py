@@ -3,7 +3,7 @@ import logging
 import random
 import math
 
-from typing import List
+from typing import Dict,List
 from enum import Enum
 
 from ipv8.community import CommunitySettings
@@ -32,7 +32,7 @@ class SendMessage(DolevMessage):
 
     msg_type = MessageType.SEND
 
-    def __init__(self, message: str, source_id:int, path , message_id: str = "3", msg_type = MessageType.SEND):
+    def __init__(self, message: str, source_id:int, path: List[int] , message_id: str = "3", msg_type: MessageType = MessageType.SEND):
         super().__init__(message, message_id, source_id, path)
         self.msg_type = msg_type
 
