@@ -26,13 +26,10 @@ class MessageConfig:
     msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
 class DolevMessage:
-    def __init__(self, message: str, message_id: str, source_id: int, path: List[int]):
-
-        self.message = message
-        self.message_id = message_id
-
-        self.source_id = source_id
-        self.path = path
+    message: str
+    message_id: int
+    source_id: int
+    path: List[int]
 
 class DolevMetrics:
     node_count: int = 0
@@ -86,6 +83,9 @@ class BasicDolevRC(DistributedAlgorithm):
         # log related stuffs
         self.node_outputMetrics = OutputMetrics(self)
         self.msg_level = parameters.msg_level
+        self.msg_log = None
+        
+        self.metrics = DolevMetrics()
 
     def gen_output_file_path(self, test_name: str ="Dolev_Test") : 
         '''
@@ -224,7 +224,7 @@ class BasicDolevRC(DistributedAlgorithm):
             raise e
         
         self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] delivered through Source Node")
-        self.trigger_delivery(message)
+        await self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
     async def on_message(self, peer: Peer, payload: DolevMessage) -> None:
@@ -281,7 +281,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.append_output(MD1_log)
                 print(MD1_log)
                 print(f'Node {self.node_id} delivered through MD1')
-                self.trigger_delivery(new_payload)
+                await self.trigger_delivery(new_payload)
 
             #if len(self.message_paths.get(payload.message_id)) >= (self.f + 1): history line remaining, will be removed
 
@@ -298,7 +298,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.append_output(disjoint_path_find_log)
                 print(disjoint_path_find_log)
 
-                self.trigger_delivery(new_payload)
+                await self.trigger_delivery(new_payload)
 
             #all node that can be skipped
             node_to_skip = set(new_path)
