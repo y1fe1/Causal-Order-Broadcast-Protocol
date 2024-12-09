@@ -11,15 +11,17 @@ from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
-from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVL
+from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from ..system.da_types import ConnectionMessage
 
 class MessageConfig:
-    def __init__(self, broadcasters={1:2, 2:1}, malicious_nodes=[], N = 10, msg_level = LOG_LEVL.DEBUG):
+    def __init__(self, broadcasters={1:2, 2:1}, malicious_nodes=[], N = 10, msg_level = LOG_LEVEL.DEBUG):
+        self.N = N
         self.broadcasters = broadcasters
         self.malicious_nodes = malicious_nodes
         self.f = len(malicious_nodes)
+        self.msg_level = msg_level
 
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
@@ -83,8 +85,8 @@ class BasicDolevRC(DistributedAlgorithm):
         self.add_message_handler(DolevMessage, self.on_message)
         
         # log related stuffs
-        node_outputMetrics = OutputMetrics(self)
-        self.msg_log = message_logger(self.node_id,parameters.msg_level, self.algortihm_output_file,node_outputMetrics)
+        self.node_outputMetrics = OutputMetrics(self)
+        self.msg_level = parameters.msg_level
 
     def gen_output_file_path(self, test_name: str ="Dolev_Test") : 
         '''
@@ -106,7 +108,7 @@ class BasicDolevRC(DistributedAlgorithm):
     def generate_message(self) -> DolevMessage:
         msg =  ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
         id = self.generate_message_id(msg)
-        return DolevMessage(msg, id,self.node_id,[])
+        return DolevMessage(msg, id, self.node_id, [])
     
     def generate_malicious_msg(self) -> DolevMessage:
 
@@ -152,15 +154,18 @@ class BasicDolevRC(DistributedAlgorithm):
         
         return processed_mal_msg
     
-    async def on_start(self):
+    def init_logger(self):
+        self.msg_log = message_logger(self.node_id, self.msg_level, self.algortihm_output_file, self.node_outputMetrics)
 
+    async def on_start(self):
+        self.init_logger()
         if self.node_id in self.malicious_nodes:
             self.is_malicious = True
-            self.msg_log.log(LOG_LEVL.INFO, f"Hi I am malicious {self.node_id}")
+            self.msg_log.log(LOG_LEVEL.INFO, f"Hi I am malicious {self.node_id}")
 
         if self.node_id in self.starter_nodes:
             
-            self.msg_log.log(LOG_LEVL.INFO,  f'Node {self.node_id} is starting.')
+            self.msg_log.log(LOG_LEVEL.INFO,  f'Node {self.node_id} is starting.')
 
             await self.on_start_as_starter()
  
@@ -185,21 +190,21 @@ class BasicDolevRC(DistributedAlgorithm):
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
-        self.msg_log.log(LOG_LEVL.DEBUG, f"Node {self.node_id} entering on_start_as_starter")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} entering on_start_as_starter")
 
         message = self.generate_message()
-        self.msg_log.log(LOG_LEVL.INFO, f"Node {self.node_id} Generated message: {message}")
+        self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} Generated message: {message}")
         await self.on_broadcast(message)
 
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
 
-        self.msg_log.log(LOG_LEVL.INFO, f"Node {self.node_id} is starting Dolev's protocol")
+        self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} is starting Dolev's protocol")
 
         peers = self.get_peers()
 
-        self.msg_log.log(LOG_LEVL.DEBUG, f"Node {self.node_id} entering on_broadcast, Peers count: {len(peers)}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} entering on_broadcast, Peers count: {len(peers)}")
 
         #if the node is a malicious node, then generate a fake msg to deliver to maximum f 
         if self.is_malicious :
@@ -211,15 +216,15 @@ class BasicDolevRC(DistributedAlgorithm):
             for peer in peers[:max_broadcast_cnt]:
                 peer_id = self.node_id_from_peer(peer)
                 broad_cast_log = f"[Node {self.node_id}] Sent message : {message.message_id} to node {peer_id} in broadcast"
-                self.msg_log.log(LOG_LEVL.DEBUG,broad_cast_log)
+                self.msg_log.log(LOG_LEVEL.DEBUG,broad_cast_log)
                 
                 self.ez_send(peer, message)
 
         except Exception as e:
-            self.msg_log.log(LOG_LEVL.ERROR, f"Error in on_broadcast: {e}")
+            self.msg_log.log(LOG_LEVEL.ERROR, f"Error in on_broadcast: {e}")
             raise e
         
-        self.msg_log.log(LOG_LEVL.INFO, f"[Node {self.node_id}] delivered through Source Node")
+        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] delivered through Source Node")
         self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -338,18 +343,18 @@ class BasicDolevRC(DistributedAlgorithm):
             
     async def trigger_delivery(self, message: DolevMessage):
         if self.is_malicious:
-            self.msg_log.log(LOG_LEVL.WARNING, "I am malicious!!!! Why can I deliver!")
+            self.msg_log.log(LOG_LEVEL.WARNING, "I am malicious!!!! Why can I deliver!")
             if self.node_id == message.source_id:
-                self.msg_log.log(LOG_LEVL.WARNING, "Never mind. It's my own message.")
+                self.msg_log.log(LOG_LEVEL.WARNING, "Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
         self.msg_log.outputMetrics.delivered_msg_cnt+=1
 
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
-        self.msg_log.log(LOG_LEVL.INFO, deliver_log)
+        self.msg_log.log(LOG_LEVEL.INFO, deliver_log)
 
         for msg_id, status in self.is_delivered.items():
-            self.msg_log.log(LOG_LEVL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
         #write output to the file output
         await self.msg_log.flush()
