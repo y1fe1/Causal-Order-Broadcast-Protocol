@@ -1,9 +1,18 @@
 import logging
 import csv
 
+import asyncio
+
+from enum import Enum
 from pathlib import Path
 from typing import Dict
 from cs4545.system.da_types import DistributedAlgorithm
+
+class LOG_LEVL(Enum):
+    INFO = 1
+    DEBUG = 2
+    WARNING = 3
+    ERROR = 4
 
 class OutputMetrics:
 
@@ -51,18 +60,18 @@ class message_logger:
 
         log_entry = f'{self.node_id} | {level} | {msg}'
 
-        if level == "DEBUG":
-            self.logger.debug(log_entry)
-        elif level == "INFO":
+        if level == LOG_LEVL.INFO:
             self.logger.info(log_entry)
-        elif level == "WARNING":
+        elif level == LOG_LEVL.DEBUG:
+            self.logger.debug(log_entry)
+        elif level == LOG_LEVL.WARNING:
             self.logger.warning(log_entry)
-        elif level == "ERROR":
+        elif level == LOG_LEVL.ERROR:
             self.logger.error(log_entry)
         else:
             raise ValueError(f"Unknown log level: {level}")
         
-    def output_metrics_to_csv(self,metrics_summary) :
+    async def output_metrics_to_csv(self,metrics_summary) :
         
         csv_output_path = (self.algorithm_output_file.parent
                            / f"{self.algorithm_output_file.stem}-{self.node_id}.csv")
@@ -81,17 +90,17 @@ class message_logger:
 
         is_file_exist = csv_output_path.exist() and csv_output_path.stat().st_size > 0
         
-        with open(f'csv_output_file', "a") as csv_output:
+        async with open(f'csv_output_file', "a") as csv_output:
 
-            writer = csv.writer(csv_output)
+            writer = csv.writer(await csv_output)
 
             if not is_file_exist:
-                writer.writerow(header)
+                await writer.writerow(header)
             
-            writer.writerow(metrics_list)
+            await writer.writerow(metrics_list)
             
     # Write the log output to files \ this should occure every time a deliver event is triggered?
-    def flush(self):
+    async def flush(self):
 
         metrics_summary = f"{self.node_id},
                  {self.log_metrics.node_count},
@@ -101,8 +110,8 @@ class message_logger:
                  {self.log_metrics.latency:.3f},
                  {self.log_metrics.message_count - self.log_metrics.last_message_count}"
     
-        self.log("INFO", metrics_summary)
+        self.log(LOG_LEVL.INFO, metrics_summary)
 
-        self.file_handler.flush()
-        self.output_metrics_to_csv(metrics_summary)
+        await self.file_handler.flush()
+        await self.output_metrics_to_csv(metrics_summary)
 

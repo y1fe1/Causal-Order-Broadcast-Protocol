@@ -1,20 +1,23 @@
 import asyncio
+import datetime
 import os
 import random
 import time
+
 from typing import Dict
+from typing import List
 
 from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
+from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVL
 from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
-from typing import List
 from ..system.da_types import ConnectionMessage
 
-class DolevConfig:
-    def __init__(self, starter_nodes=[1, 6, 0, 2], malicious_nodes=[]):
-        self.starter_nodes = starter_nodes
+class MessageConfig:
+    def __init__(self, broadcasters={1:2, 2:1}, malicious_nodes=[], N = 10, msg_level = LOG_LEVL.DEBUG):
+        self.broadcasters = broadcasters
         self.malicious_nodes = malicious_nodes
         self.f = len(malicious_nodes)
 
@@ -22,10 +25,13 @@ class DolevConfig:
     msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
 class DolevMessage:
-    message: str
-    message_id: int
-    source_id : int
-    path: List[int]
+    def __init__(self, message: str, message_id: str, source_id: int, path: List[int]):
+
+        self.message = message
+        self.message_id = message_id
+
+        self.source_id = source_id
+        self.path = path
 
 class DolevMetrics:
     node_count: int = 0
@@ -39,19 +45,22 @@ class DolevMetrics:
     latency: float = 0.0
 
 class BasicDolevRC(DistributedAlgorithm):
-    def __init__(self, settings: CommunitySettings, parameters: DolevConfig=DolevConfig()) -> None:
+    def __init__(self, settings: CommunitySettings, parameters: MessageConfig=MessageConfig()) -> None:
         super().__init__(settings)
         
         # if parameters.f != len(parameters.malicious_nodes):
         #     print("Error: f should be equal to the length of malicious_nodes! Aborting......")
         #     self.stop()
         
+        self.N = parameters.N
         self.f = parameters.f
-        self.starter_nodes = parameters.starter_nodes
+        
+        self.connectivity = len(self.get_peers())
+        self.starter_nodes = parameters.broadcasters #broadcasters
         self.malicious_nodes = parameters.malicious_nodes
 
         #assume no malicious node exist rn
-        self.is_malicious: bool = False#(self.node_id in self.malicious_nodes) 
+        self.is_malicious: bool = False #(self.node_id in self.malicious_nodes) 
         self.malicious_behaviour = None
 
         for mal_node in self.malicious_nodes:
@@ -74,8 +83,23 @@ class BasicDolevRC(DistributedAlgorithm):
 
         self.add_message_handler(DolevMessage, self.on_message)
         
-        self.metrics = DolevMetrics()
+        # log related stuffs
+        node_outputMetrics = OutputMetrics(self)
+        self.msg_log = message_logger(self.node_id,parameters.msg_level, self.algortihm_output_file,node_outputMetrics)
 
+    def gen_output_file_path(self, test_name: str ="Dolev_Test") : 
+        '''
+            To be fair this should be part of the parent class function to Insert the subfolder directory
+            This function will set the output file to be output/{test_name}_{time_stamp}/node-{node_id}.out
+        '''
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  #this time stamp may need to be sync across all the nodes
+        subdirectory_name = f"{test_name}_{timestamp}"
+
+        return (self.algorithm_output_file.parent 
+                                      / subdirectory_name
+                                      / self.algortihm_output_file.name)
+    
     def generate_message_id(self, msg: str) -> int:
         self.message_broadcast_cnt += 1
         return self.node_id * 169 + self.message_broadcast_cnt * 13 + (hash(msg) % 997)
@@ -129,49 +153,54 @@ class BasicDolevRC(DistributedAlgorithm):
         
         return processed_mal_msg
     
-
-
     async def on_start(self):
+
         if self.node_id in self.malicious_nodes:
             self.is_malicious = True
-            print(f"Hi I am malicious {self.node_id}")
+            self.msg_log.log(LOG_LEVL.INFO, f"Hi I am malicious {self.node_id}")
 
         if self.node_id in self.starter_nodes:
+            
+            self.msg_log.log(LOG_LEVL.INFO,  f'Node {self.node_id} is starting.')
+
             await self.on_start_as_starter()
-        print(f"[DEBUG] Node {self.node_id} starting with starter_nodes={self.starter_nodes}")
-
-        # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
-        if self.node_id == self.starting_node:
-            # Checking if all node states are ready
-            all_ready = all([x == "ready" for x in self.node_states.values()])
-            while not all_ready:
-                print(f"[DEBUG] Node {self.node_id} waiting, states={self.node_states}")
-                await asyncio.sleep(1)
-                all_ready = all([x == "ready" for x in self.node_states.values()])
+ 
+        # BELOW IS IGNORRED FOR NOW
+        # # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
+        # if self.node_id == self.starting_node:
+        #     # Checking if all node states are ready
+        #     all_ready = all([x == "ready" for x in self.node_states.values()])
+        #     while not all_ready:
+        #         print(f"[DEBUG] Node {self.node_id} waiting, states={self.node_states}")
+        #         await asyncio.sleep(1)
+        #         all_ready = all([x == "ready" for x in self.node_states.values()])
                 
-            print(f"[DEBUG] Node {self.node_id} has received all ready states, ready to run")
-            await asyncio.sleep(1)
+        #     print(f"[DEBUG] Node {self.node_id} has received all ready states, ready to run")
+        #     await asyncio.sleep(1)
 
-        print(f"[DEBUG] Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
-        print(f"[Node {self.node_id}] is ready")
-        for peer in self.get_peers():
-            self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
+        # print(f"[DEBUG] Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
+        # print(f"[Node {self.node_id}] is ready")
+        # for peer in self.get_peers():
+        #     self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
             
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
-        print(f"[DEBUG] Node {self.node_id} entering on_start_as_starter")
+        self.msg_log.log(LOG_LEVL.DEBUG, f"Node {self.node_id} entering on_start_as_starter")
+
         message = self.generate_message()
-        print(f"[DEBUG] Generated message: {message}")
+        self.msg_log.log(LOG_LEVL.INFO, f"Node {self.node_id} Generated message: {message}")
         await self.on_broadcast(message)
 
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
-        print(f"[DEBUG] Node {self.node_id} entering on_broadcast, Peers count: {len(self.get_peers())}")
-        print(f"Node {self.node_id} is starting Dolev's protocol")
-        
+
+        self.msg_log.log(LOG_LEVL.INFO, f"Node {self.node_id} is starting Dolev's protocol")
+
         peers = self.get_peers()
+
+        self.msg_log.log(LOG_LEVL.DEBUG, f"Node {self.node_id} entering on_broadcast, Peers count: {len(peers)}")
 
         #if the node is a malicious node, then generate a fake msg to deliver to maximum f 
         if self.is_malicious :
@@ -187,16 +216,15 @@ class BasicDolevRC(DistributedAlgorithm):
                 peer_id = self.node_id_from_peer(peer)
 
                 broad_cast_log = f"[Node {self.node_id}] Sent message : {message.message_id} to node {peer_id} in broadcast"
-                self.append_output(broad_cast_log)
-                print(broad_cast_log)
-
+                self.msg_log.log(LOG_LEVL.DEBUG,broad_cast_log)
+                
                 self.ez_send(peer, message)
 
         except Exception as e:
-            print(f"Error in on_broadcast: {e}")
+            self.msg_log.log(LOG_LEVL.ERROR, f"Error in on_broadcast: {e}")
             raise e
         
-        print(f"[Node {self.node_id}] delivered through Source Node")
+        self.msg_log.log(LOG_LEVL.INFO, f"[Node {self.node_id}] delivered through Source Node")
         self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -314,27 +342,25 @@ class BasicDolevRC(DistributedAlgorithm):
             print(f"Error in on_message: {e}")
             raise e
 
-    def trigger_delivery(self, message: DolevMessage):
+    async def trigger_delivery(self, message: DolevMessage):
         if self.is_malicious:
-            print("I am malicious!!!! Why can I deliver!")
+            self.msg_log.log(LOG_LEVL.WARNING, "I am malicious!!!! Why can I deliver!")
             if self.node_id == message.source_id:
-                print("Never mind. It's my own message.")
+                self.msg_log.log(LOG_LEVL.WARNING, "Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
-        self.metrics.delivered_cnt+=1
+        self.msg_log.outputMetrics.delivered_msg_cnt+=1
 
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
-        self.append_output(deliver_log)
-        print(deliver_log)
+        self.msg_log.log(LOG_LEVL.INFO, deliver_log)
 
         for msg_id, status in self.is_delivered.items():
-            self.append_output(f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
+            self.msg_log.log(LOG_LEVL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
-        self.save_algorithm_output()
-        self.save_node_stats()
+        #write output to the file output
+        await self.msg_log.flush()
         
-        self.get_end_time_and_latency(message.message_id)
-        self.write_metrics()
+
 
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
