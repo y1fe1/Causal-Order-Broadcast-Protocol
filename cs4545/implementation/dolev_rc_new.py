@@ -157,6 +157,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
         self.msg_log.log_metrics = OutputMetrics(self)
         self.msg_log.logger.setLevel(self.msg_level.value)
+
         self.msg_log.update_log_path(self.gen_output_file_path())
         self.msg_log.log(LOG_LEVEL.INFO, f"Message Log Init Succesfully, with Node {self.node_id}, Output_Path {self.algortihm_output_file}")
 

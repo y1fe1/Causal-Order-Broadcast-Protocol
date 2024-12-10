@@ -68,7 +68,7 @@ class BrachaRB(BasicDolevRC):
         self.Optim3 = parameters.Optim3
 
     def gen_output_file_path(self, test_name: str = "Bracha_Test"):
-        super().gen_output_file_path(test_name)
+        return super().gen_output_file_path(test_name)
 
     def generate_message(self) -> SendMessage:
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
@@ -92,7 +92,7 @@ class BrachaRB(BasicDolevRC):
     # event <Bracha, Broadcast | M >  do
     async def on_broadcast(self, message: DolevMessage) -> None:
         # ⟨Dolev,Broadcast|[Send,m]⟩
-        self.broadcast_message(message.message_id, MessageType.ECHO, message, set_flag=True)
+        await self.broadcast_message(message.message_id, MessageType.ECHO, message, set_flag=True)
 
     
     #event ⟨al,Deliver | p,[SEND,m]⟩
@@ -128,7 +128,7 @@ class BrachaRB(BasicDolevRC):
         await self.Optim1_handler(payload.message_id, payload, MessageType.ECHO)
 
     #  ⟨Dolev,Broadcast|[mType,m]⟩ ensure each msg is broadcasted to all node through dolev protocol
-    def broadcast_message(self, message_id: str, msg_type: MessageType, payload: DolevMessage, set_flag: bool = False):
+    async def broadcast_message(self, message_id: str, msg_type: MessageType, payload: DolevMessage, set_flag: bool = False):
         if set_flag:
             if msg_type == MessageType.ECHO:
                 self.set_echo_sent_true(message_id)
@@ -138,11 +138,11 @@ class BrachaRB(BasicDolevRC):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {msg_type.name} messages: {message_id}")
         
         if msg_type == MessageType.SEND:
-            super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
+            await super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
         elif msg_type == MessageType.ECHO:
-            super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
+            await super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
         elif msg_type == MessageType.READY:
-            super().on_broadcast(ReadyMessage(payload.message, payload.message_id, self.node_id, []))
+            await super().on_broadcast(ReadyMessage(payload.message, payload.message_id, self.node_id, []))
 
             
     """
@@ -156,7 +156,7 @@ class BrachaRB(BasicDolevRC):
     async def trigger_send_echo(self, message_id: str, payload: SendMessage):
         sent_echo = self.check_if_echo_sent(message_id)
         if not sent_echo:
-            self.broadcast_message(message_id, MessageType.ECHO, payload, set_flag=True)
+            await self.broadcast_message(message_id, MessageType.ECHO, payload, set_flag=True)
 
     # trigger ⟨al,Send | q,[READY,m]⟩
     async def trigger_send_ready(self, message_id: str, count: int, threshold: int, payload: EchoMessage):
@@ -166,7 +166,7 @@ class BrachaRB(BasicDolevRC):
         """
         sent_ready = self.check_if_ready_sent(message_id)
         if not sent_ready and count >= threshold:
-            self.broadcast_message(message_id, MessageType.READY, payload, set_flag=True)
+            await self.broadcast_message(message_id, MessageType.READY, payload, set_flag=True)
 
     # ⟨Dolev,Deliver | [source,msgType,m]⟩ 
     async def trigger_delivery(self, payload: DolevMessage):
@@ -201,7 +201,7 @@ class BrachaRB(BasicDolevRC):
     Optimizations
     """
     
-    def Optim1_handler(self, message_id: str, payload: EchoMessage, msg_type: MessageType):
+    async def Optim1_handler(self, message_id: str, payload: EchoMessage, msg_type: MessageType):
         if self.Optim1:
             count = 0
             threshold = 0
@@ -211,21 +211,21 @@ class BrachaRB(BasicDolevRC):
                 if count >= threshold:
                     if not self.check_if_echo_sent(message_id):
                         self.set_echo_sent_true(message_id)
-                        self.broadcast_message(message_id, MessageType.ECHO, payload, True)
+                        await self.broadcast_message(message_id, MessageType.ECHO, payload, True)
             elif msg_type == MessageType.READY:
                 if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
                     self.set_echo_sent_true(message_id)
                     self.set_ready_sent_true(message_id)
-                    self.broadcast_message(message_id, MessageType.READY, payload, True)
+                    await self.broadcast_message(message_id, MessageType.READY, payload, True)
                 elif not self.check_if_echo_sent(message_id):
                     self.set_echo_sent_true(message_id)
-                    self.broadcast_message(message_id, MessageType.ECHO, payload, True)
+                    await self.broadcast_message(message_id, MessageType.ECHO, payload, True)
 
     """
     Getter & Setter
     """
-    def set_echo_sent(self, message_id, isSent = True):
-        self.is_echo_sent.udpate({message_id: isSent})
+    def set_echo_sent_true(self, message_id, isSent = True):
+        self.is_echo_sent.update({message_id: isSent})
 
     def set_ready_sent_true(self, message_id , isSent = True):
         self.is_ready_sent.update({message_id: isSent})

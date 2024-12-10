@@ -81,7 +81,7 @@ class message_logger:
 
         # Set the new log file path
         self.log_file_path = log_file_path
-
+        
         log_dir = self.log_file_path.parent
         if not log_dir.exists():
             log_dir.mkdir(parents=True, exist_ok=True) 
