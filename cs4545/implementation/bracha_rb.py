@@ -17,47 +17,39 @@ from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LE
 
 class BrachaConfig(MessageConfig):
     def __init__(self, broadcasters={1: 2, 2: 1}, malicious_nodes=[3], N=10, msg_level=logging.DEBUG):
+        assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
         self.Optim1 = False
         self.Optim2 = False
         self.Optim3 = False
 
-
-"""
-region Message Definition
-"""
-
-
+#region Message Definition
 class MessageType(Enum):
     SEND = 1
     ECHO = 2
     READY = 3
 
 
-@dataclass(msg_id=4)
+#@dataclass(msg_id=4)
 class SendMessage(DolevMessage):
     msg_type = MessageType.SEND
 
 
-@dataclass(msg_id=5)
+#@dataclass(msg_id=5)
 class EchoMessage(DolevMessage):
     msg_type = MessageType.ECHO
 
 
-@dataclass(msg_id=6)
+#@dataclass(msg_id=6)
 class ReadyMessage(DolevMessage):
     msg_type = MessageType.READY
 
 
-"""
-endregion
-"""
 
+# endregion
 
 class BrachaRB(BasicDolevRC):
     def __init__(self, settings: CommunitySettings, parameters=BrachaConfig()) -> None:
-
-        super().algortihm_output_file = self.gen_output_file_path()
 
         super().__init__(settings, parameters)
 
@@ -98,20 +90,6 @@ class BrachaRB(BasicDolevRC):
     async def on_broadcast(self, message: DolevMessage) -> None:
         # ⟨Dolev,Broadcast|[Send,m]⟩
         super().on_broadcast(message)
-
-    #trigger ⟨al,Send | q,[ECHO,m]⟩ 
-    async def trigger_send_echo(self, message_id: str, count: int, threshold: int, payload: SendMessage):
-
-        sent_echo = self.is_echo_sent.get(message_id, {}).get(self.node_id, False)
-
-        if not sent_echo and count >= threshold:
-
-            self.is_echo_sent.setdefault(message_id, {})[self.node_id] = True
-
-            self.msg_log.log(LOG_LEVEL.DEBUG, f'Sent ECHO messages: {message_id}')
-
-        # Broadcast ECHO message to peers ⟨Dolev,Broadcast|[Echo,m]⟩
-        super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
 
     
     #event ⟨al,Deliver | p,[SEND,m]⟩
@@ -202,6 +180,7 @@ class BrachaRB(BasicDolevRC):
             # super().on_broadcast(
             #     ReadyMessage(payload.message, payload.message_id, self.node_id, [])
             # )
+    
     def trigger_delivery_if_ready(self, payload):
         if (not self.is_delivered.get(payload.message_id)
             and self.ready_count.get(payload.message_id) >= 2 * self.f + 1
@@ -211,6 +190,8 @@ class BrachaRB(BasicDolevRC):
             
     # trigger ⟨Bracha,Deliver | s,m⟩
     async def trigger_delivery(self, payload: DolevMessage):
+
+        
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered a message: {payload.message_id}.")
         await self.msg_log.flush()
         

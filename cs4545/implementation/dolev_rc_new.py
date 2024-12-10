@@ -152,6 +152,9 @@ class BasicDolevRC(DistributedAlgorithm):
         return processed_mal_msg
     
     def init_logger(self):
+
+        self.connectivity = len(self.get_peers()) # seems like we have to recheck connectivity
+
         self.msg_log.log_metrics = OutputMetrics(self)
         self.msg_log.logger.setLevel(self.msg_level.value)
         self.msg_log.update_log_path(self.gen_output_file_path())
@@ -179,7 +182,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
             if not all_ready:
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} waiting, states={self.node_states}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(2) # this is enough to make the logic stack look happy
             
             else:
                 self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is ready")
@@ -252,6 +255,9 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.DEBUG,MD4_log)
             return
 
+        # increment log cnt for this message
+        self.log_message_cnt(message_id)
+
         if self.MD3 and not msg_path:   #if msg_path is empty, indicate the sender has delivered the msg (#MD2)
 
             self.delivered_neighbour.setdefault(message_id, set()).add(sender_id)
@@ -293,8 +299,6 @@ class BasicDolevRC(DistributedAlgorithm):
             
             if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
-                self.metrics.message_count = len(self._message_history)
-                
                 disjoint_path_find_log = f"Enough node-disjoint paths found for {message_id}, message will be delivered"
                 self.msg_log.log(LOG_LEVEL.INFO, disjoint_path_find_log)
 
@@ -328,7 +332,11 @@ class BasicDolevRC(DistributedAlgorithm):
                     msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message}"
                     self.msg_log.log(LOG_LEVEL.INFO, msg_log)
 
-                    self.ez_send(neighbor, DolevMessage(new_payload.message, new_payload.message_id, source_id, new_path))
+                    payload.message = new_payload.message
+                    payload.message_id = new_payload.message_id
+                    payload.path = new_path
+
+                    self.ez_send(neighbor, payload)
            
         except Exception as e:
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in on_message: {e}")
@@ -347,19 +355,17 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.msg_log.log(LOG_LEVEL.WARNING, "Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
-        self.msg_log.log_metrics.delivered_msg_cnt+=1
 
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
         self.msg_log.log(LOG_LEVEL.INFO, deliver_log)
 
+        self.write_metrics(message.message_id)
+        
         for msg_id, status in self.is_delivered.items():
             self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
         #write output to the file output
         self.msg_log.flush()
-        
-
-
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
         # TODO: Very likely to be wrong and thus causing nodes to not deliver a correct message.
@@ -418,26 +424,30 @@ class BasicDolevRC(DistributedAlgorithm):
         backtrack(0, [], 0)
         return len(best_result) > f
 
-    def set_metics_start_time(self, msg_id):
-        if self.metrics.start_time.get(msg_id, 0) == 0:
-            self.metrics_init()
-            self.metrics.start_time[msg_id] = datetime.now()
-        
-    def get_end_time_and_latency(self, msg_id):
-        self.metrics.end_time[msg_id] = datetime.now()
-        start_time = self.metrics.start_time.get(msg_id, 0.0)
+    # region Loggin Functions
+    def log_message_cnt(self, message_id):
+        self.msg_log.log_message_cnt(message_id)
 
-        self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time
+    def set_metics_start_time(self, msg_id):
+       self.msg_log.set_metric_start_time(msg_id)
         
-    def write_metrics(self):
-        metrics_log = f"{self.node_id},{self.metrics.node_count},{self.metrics.byzantine_count},{self.metrics.delivered_cnt},{self.metrics.connectivity},{self.metrics.latency*1000:.03f},{self.metrics.message_count - self.metrics.last_message_count},{len(self._message_history)},{self._message_history.bytes_sent()}"
-        self.metrics.last_message_count = self.metrics.message_count
-        
-        with open("output/metrics_output_conn"+str(self.metrics.connectivity)+".csv", "a") as f:
-            f.write(metrics_log + "\n")
+    def set_metric_end_time(self,msg_id):
+        self.msg_log.set_metric_end_time(msg_id)
+
+    def log_delivered_status(self, message_id, status=True):
+        self.msg_log.set_metric_delivered_status(message_id, True)
+
+    def log_message_history(self):
+        self.msg_log.set_message_history(len(self._message_history), self._message_history.bytes_sent())
+
+    def write_metrics(self, message_id):
+        self.log_delivered_status(message_id, True)
+        self.set_metric_end_time(message_id)
+        self.log_message_history()
         
     def metrics_init(self):
         self.metrics.node_count = len(self.nodes)
         self.metrics.byzantine_count = len(self.malicious_nodes)
         self.metrics.connectivity = len(self.get_peers())
         self.metrics.message_count = 0
+    #endregion
