@@ -2,8 +2,8 @@ import asyncio
 import datetime
 import os
 import random
-import time
 
+from datetime import datetime
 from typing import Dict,List
 
 from ipv8.community import CommunitySettings
@@ -83,8 +83,6 @@ class BasicDolevRC(DistributedAlgorithm):
         # log related stuffs
         self.node_outputMetrics = OutputMetrics(self)
         self.msg_level = parameters.msg_level
-        self.msg_log = None
-        
         self.metrics = DolevMetrics()
 
     def gen_output_file_path(self, test_name: str ="Dolev_Test") : 
@@ -93,10 +91,10 @@ class BasicDolevRC(DistributedAlgorithm):
             This function will set the output file to be output/{test_name}_{time_stamp}/node-{node_id}.out
         '''
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  #this time stamp may need to be sync across all the nodes
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")  #this time stamp may need to be sync across all the nodes, keep it at minute level would be fine ig
         subdirectory_name = f"{test_name}_{timestamp}"
 
-        return (self.algorithm_output_file.parent 
+        return (self.algortihm_output_file.parent 
                                       / subdirectory_name
                                       / self.algortihm_output_file.name)
     
@@ -154,38 +152,43 @@ class BasicDolevRC(DistributedAlgorithm):
         return processed_mal_msg
     
     def init_logger(self):
-        self.msg_log = message_logger(self.node_id,self.algortihm_output_file, self.node_outputMetrics,self.msg_level)
+        self.msg_log.log_metrics = OutputMetrics(self)
+        self.msg_log.logger.setLevel(self.msg_level.value)
+        self.msg_log.update_log_path(self.gen_output_file_path())
+        self.msg_log.log(LOG_LEVEL.INFO, f"Message Log Init Succesfully, with Node {self.node_id} Output_Path {self.algortihm_output_file}")
 
     async def on_start(self):
+
         self.init_logger()
+
         if self.node_id in self.malicious_nodes:
             self.is_malicious = True
             self.msg_log.log(LOG_LEVEL.INFO, f"Hi I am malicious {self.node_id}")
 
+        all_ready = False
+        # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
+        while not all_ready:
+
+            all_ready = all(
+                state == "ready"
+                for node_id, state in self.node_states.items()
+            )
+
+            for peer in self.get_peers():
+                self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
+
+            if not all_ready:
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} waiting, states={self.node_states}")
+                await asyncio.sleep(2)
+            
+            else:
+                self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is ready")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} ready, states={self.node_states}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
+
         if self.node_id in self.starter_nodes:
-            
-            self.msg_log.log(LOG_LEVEL.INFO,  f'Node {self.node_id} is starting.')
-
+            self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} is starting.")
             await self.on_start_as_starter()
- 
-        # BELOW IS IGNORRED FOR NOW
-        # # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
-        # if self.node_id == self.starting_node:
-        #     # Checking if all node states are ready
-        #     all_ready = all([x == "ready" for x in self.node_states.values()])
-        #     while not all_ready:
-        #         print(f"[DEBUG] Node {self.node_id} waiting, states={self.node_states}")
-        #         await asyncio.sleep(1)
-        #         all_ready = all([x == "ready" for x in self.node_states.values()])
-                
-        #     print(f"[DEBUG] Node {self.node_id} has received all ready states, ready to run")
-        #     await asyncio.sleep(1)
-
-        # print(f"[DEBUG] Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
-        # print(f"[Node {self.node_id}] is ready")
-        # for peer in self.get_peers():
-        #     self.ez_send(peer, ConnectionMessage(self.node_id, "ready"))
-            
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
@@ -347,7 +350,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.msg_log.log(LOG_LEVEL.WARNING, "Never mind. It's my own message.")
 
         self.is_delivered[message.message_id] = True
-        self.msg_log.outputMetrics.delivered_msg_cnt+=1
+        self.msg_log.log_metrics.delivered_msg_cnt+=1
 
         deliver_log = f"Node {self.node_id} delivering message: {message.message}"
         self.msg_log.log(LOG_LEVEL.INFO, deliver_log)
@@ -356,7 +359,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
         #write output to the file output
-        await self.msg_log.flush()
+        self.msg_log.flush()
         
 
 
@@ -421,10 +424,10 @@ class BasicDolevRC(DistributedAlgorithm):
     def set_metics_start_time(self, msg_id):
         if self.metrics.start_time.get(msg_id, 0) == 0:
             self.metrics_init()
-            self.metrics.start_time[msg_id] = time.time()
+            self.metrics.start_time[msg_id] = datetime.now()
         
     def get_end_time_and_latency(self, msg_id):
-        self.metrics.end_time[msg_id] = time.time()
+        self.metrics.end_time[msg_id] = datetime.now()
         start_time = self.metrics.start_time.get(msg_id, 0.0)
 
         self.metrics.latency = self.metrics.end_time.get(msg_id) - start_time

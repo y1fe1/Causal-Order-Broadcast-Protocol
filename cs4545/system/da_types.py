@@ -19,6 +19,7 @@ from ipv8.types import Peer, LazyWrappedHandler, MessageHandlerFunction
 
 from cs4545.system.msg_history import MessageHistory
 
+from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
 
 def sizeof(obj):
     size = sys.getsizeof(obj)
@@ -89,6 +90,10 @@ class DistributedAlgorithm(Community):
                 self.algortihm_output_file.parent
                 / f"{self.algortihm_output_file.stem}-{node_id}{self.algortihm_output_file.suffix}"
         )
+
+        self.msg_level = LOG_LEVEL.DEBUG
+        self.msg_log = message_logger(self.node_id,self.algortihm_output_file,OutputMetrics(),self.msg_level) #default constructor to make python happy
+
         self.stat_file = Path(stat_file)
         self.stat_file = self.stat_file.parent / f"{self.stat_file.stem}-{node_id}{self.stat_file.suffix}"
         connections = list(set(connections))
