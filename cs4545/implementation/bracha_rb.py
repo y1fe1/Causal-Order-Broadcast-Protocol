@@ -51,13 +51,12 @@ class BrachaRB(BasicDolevRC):
         return super().gen_output_file_path(test_name)
 
     def generate_message_id(self, msg: str) -> int:
-        msg = msg + ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
         self.message_broadcast_cnt += 1
         return self.node_id * 169 + self.message_broadcast_cnt * 13 + (hash(msg) % 997)
     
     def generate_message(self) -> DolevMessage:
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
-        u_id = hash(msg)
+        u_id = hash(msg) % 9997
         msg_id = self.generate_message_id(msg)
         return DolevMessage(u_id, msg, msg_id, self.node_id, [], "BRACHA")
     
