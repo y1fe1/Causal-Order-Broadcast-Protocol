@@ -83,8 +83,8 @@ class BasicDolevRC(DistributedAlgorithm):
         self.MD1 = True
         self.MD2 = True
         self.MD3 = True
-        self.MD4 = True
-        self.MD5 = True
+        self.MD4 = False
+        self.MD5 = False
 
         self.add_message_handler(DolevMessage, self.on_message)
         
@@ -336,7 +336,7 @@ class BasicDolevRC(DistributedAlgorithm):
                     self.msg_log.log(LOG_LEVEL.DEBUG, MD2_log)
                     break
 
-                if neighbor_id not in node_to_skip:
+                if payload.is_delayed and (neighbor_id not in node_to_skip):
 
                     msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message}"
                     self.msg_log.log(LOG_LEVEL.INFO, msg_log)
