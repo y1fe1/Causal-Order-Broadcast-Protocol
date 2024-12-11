@@ -27,6 +27,7 @@ class MessageType(Enum):
     SEND = 1
     ECHO = 2
     READY = 3
+    BRACHA = 4
 
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
@@ -83,8 +84,8 @@ class BasicDolevRC(DistributedAlgorithm):
         self.MD1 = True
         self.MD2 = True
         self.MD3 = True
-        self.MD4 = False
-        self.MD5 = False
+        self.MD4 = True
+        self.MD5 = True
 
         self.add_message_handler(DolevMessage, self.on_message)
         
@@ -365,8 +366,10 @@ class BasicDolevRC(DistributedAlgorithm):
             self.is_delivered.update({message.message_id: True })
             self.write_metrics(message.message_id)
             
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"New Delivered Messages: Message ID: {message.message_id}, TYPE: {message.phase}")
+
             for msg_id, status in self.is_delivered.items():
-                self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Message Type: {message.phase}, Delivered: {status}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
             #write output to the file output
             self.msg_log.flush()

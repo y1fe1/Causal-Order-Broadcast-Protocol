@@ -74,7 +74,7 @@ class BrachaRB(BasicDolevRC):
     def generate_message(self) -> DolevMessage:
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
         id = hash(msg)
-        return self.generate_send_msg(msg, id, self.node_id, [])
+        return DolevMessage(msg, id, self.node_id, [], "BRACHA")
 
     async def on_start(self):
 
@@ -127,7 +127,7 @@ class BrachaRB(BasicDolevRC):
 
         # upon event readys.size() ≥ 2f+1 and not delivered do
         delivered_threshold = (len(self.ready_count.get(payload.message_id)) >= 2*self.f+1) \
-                                and self.is_BRBdelivered.get(payload.message_id, False)
+                                and not self.is_BRBdelivered.get(payload.message_id)
 
         if delivered_threshold:
             self.trigger_Bracha_Delivery(payload)
@@ -143,9 +143,9 @@ class BrachaRB(BasicDolevRC):
             new_msg = self.generate_echo_msg(payload.message, payload.message_id+1, self.node_id, [])
         elif msg_type == MessageType.READY:
             new_msg = self.generate_ready_msg(payload.message, payload.message_id+1, self.node_id, [])
-    
+
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {new_msg.phase} messages: {payload.message_id}")
         await super().on_broadcast(new_msg)
-        self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {msg_type.name} messages: {message_id}")
 
             
     """
@@ -198,7 +198,7 @@ class BrachaRB(BasicDolevRC):
         self.write_metrics(payload_og_id)
         
         for msg_id, status in self.is_BRBdelivered.items():
-            self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
         self.msg_log.flush()
 
@@ -248,7 +248,7 @@ class BrachaRB(BasicDolevRC):
     def increment_ready_count(self, message_id, msg_source_id):
         self.ready_count.setdefault(message_id, set()).add(msg_source_id)
         
-    def generate_send_msg(self,message: str, message_id: str, source_id: str, destination: List[str]):
+    def generate_send_msg(self,message: str, message_id: str, source_id: str, destination: List[str]): 
         if self.Optim2:
             return DolevMessage(message, message_id, source_id, destination, "SEND", False)
         else:
