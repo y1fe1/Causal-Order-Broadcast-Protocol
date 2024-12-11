@@ -67,6 +67,9 @@ class BrachaRB(BasicDolevRC):
         self.Optim1 = parameters.Optim1
         self.Optim2 = parameters.Optim2
         self.Optim3 = parameters.Optim3
+        
+        self.Optim3_ECHO = math.ceil((self.f + self.N + 1) / 2)
+        self.Optim3_READY = 2 * self.f + 1
 
     def gen_output_file_path(self, test_name: str = "Bracha_Test"):
         return super().gen_output_file_path(test_name)
@@ -225,6 +228,18 @@ class BrachaRB(BasicDolevRC):
                 elif not self.check_if_echo_sent(message_id):
                     self.set_echo_sent_true(message_id)
                     await self.broadcast_message(message_id, MessageType.ECHO, payload, True)
+
+    def is_Optim3_ECHO(self) -> bool:
+        if not self.Optim3:
+            return True
+        if self.Optim3:
+            return self.node_id <= self.Optim3_ECHO
+    
+    def is_Optim3_READY(self) -> bool:
+        if not self.Optim3:
+            return True
+        if self.Optim3:
+            return self.node_id <= self.Optim3_READY
 
     """
     Getter & Setter
