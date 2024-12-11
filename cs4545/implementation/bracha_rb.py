@@ -203,21 +203,27 @@ class BrachaRB(BasicDolevRC):
     """
     Malicious behavior(overload)
     """
+    # u_id = hash(msg)
+    # msg_id = self.generate_message_id(msg)
+    # return DolevMessage(u_id, msg, msg_id, self.node_id, [], "BRACHA")
     def generate_malicious_msg(self) -> DolevMessage:
         msg = f"fake news!"
-        id = self.generate_message_id(msg)
+        u_id = hash(msg)
+        msg_id = self.generate_message_id(msg)
         self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] generated malicious msg to send")
-        #TODO correct definition
-        return DolevMessage(msg, id, self.node_id, [])
+    
+        return DolevMessage(u_id, msg, msg_id, self.node_id, [])
     
     def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
         if payload:
             original_msg = payload.message
             fake_message = f"fake behaviour set on: {original_msg}"
-            fake_id = hash(fake_message)
+            
             self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] tampered the original msg")
-            #TODO correct definition
-            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path)
+            
+            u_id = hash(fake_message)
+            fake_id = self.generate_message_id(fake_message)
+            return DolevMessage(u_id, fake_message, fake_id, payload.source_id, payload.path)
 
     def execute_mal_process(self, msg) -> DolevMessage:
         (behaviour, args) = {
