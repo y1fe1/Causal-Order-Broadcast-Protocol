@@ -223,6 +223,39 @@ class BrachaRB(BasicDolevRC):
         except Exception as e:
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in trigger_Bracha_Delivery: {e}")
             raise e
+        
+    """
+    Malicious behavior(overload)
+    """
+    def generate_malicious_msg(self) -> DolevMessage:
+        msg = f"fake news!"
+        id = self.generate_message_id(msg)
+        self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] generated malicious msg to send")
+        #TODO correct definition
+        return DolevMessage(msg, id, self.node_id, [])
+    
+    def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
+        if payload:
+            original_msg = payload.message
+            fake_message = f"fake behaviour set on: {original_msg}"
+            fake_id = hash(fake_message)
+            self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] tampered the original msg")
+            #TODO correct definition
+            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path)
+
+    def execute_mal_process(self, msg) -> DolevMessage:
+        (behaviour, args) = {
+            "generate_fake_msg" : (self.generate_malicious_msg, ()),
+            "modify_msg_id" : (self.mal_modify_msg, (msg,)),
+        }.get(self.malicious_behaviour, (None,None))
+        try:
+            if behaviour is None:
+                raise ValueError("No valid behavior was selected for malicious processing.")
+            processed_mal_msg = behaviour(*args)
+        except Exception as e:
+            self.msg_log.log(LOG_LEVEL.ERROR, f"Error in execute_mal_process: {e}")
+            raise
+        return processed_mal_msg
 
     """
     Optimizations
