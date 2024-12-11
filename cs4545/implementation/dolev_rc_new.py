@@ -33,6 +33,7 @@ class MessageType(Enum):
     msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
 class DolevMessage:
+    u_id: int
     message: str
     message_id: int
     source_id: int
