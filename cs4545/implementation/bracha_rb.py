@@ -18,12 +18,12 @@ from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LE
 from cs4545.implementation.dolev_rc_new import MessageType
 
 class BrachaConfig(MessageConfig):
-    def __init__(self, broadcasters={1: 2, 2:1}, malicious_nodes=[], N=10, msg_level=logging.DEBUG):
+    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N=10, msg_level=logging.DEBUG):
         assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
-        self.Optim1 = False
-        self.Optim2 = False
-        self.Optim3 = False
+        self.Optim1 = True
+        self.Optim2 = True
+        self.Optim3 = False     # still not work
 
 class BrachaRB(BasicDolevRC):
     def __init__(self, settings: CommunitySettings, parameters=BrachaConfig()) -> None:
@@ -196,6 +196,9 @@ class BrachaRB(BasicDolevRC):
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {u_id}, Delivered: {status}")
 
             self.msg_log.flush()
+
+            write_to_file(self.node_id, payload.u_id)
+
         except Exception as e:
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in trigger_Bracha_Delivery: {e}")
             raise e
@@ -248,7 +251,7 @@ class BrachaRB(BasicDolevRC):
             count = 0
             threshold = 0
             if msg_type == MessageType.ECHO:
-                count = self.echo_count[message_id]
+                count = self.echo_count.get(message_id, 0)
                 threshold = self.f + 1
                 if count >= threshold:
                     if not self.check_if_echo_sent(message_id):
@@ -309,3 +312,9 @@ class BrachaRB(BasicDolevRC):
     
     def generate_ready_msg(self,u_id, message: str, message_id: str, source_id: str, destination: List[str]):
         return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "READY")
+    
+    
+def write_to_file(id: int, uid: int):
+    # for debug only
+    with open('output/output.txt', 'a') as f:
+        f.write(f'Node {id} delivered a message: {uid}.\n')

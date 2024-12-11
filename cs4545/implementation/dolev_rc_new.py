@@ -16,7 +16,7 @@ from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from ..system.da_types import ConnectionMessage
 
 class MessageConfig:
-    def __init__(self, broadcasters={1:2, 2:1}, malicious_nodes=[], N = 10, msg_level = LOG_LEVEL.DEBUG):
+    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N = 10, msg_level = LOG_LEVEL.DEBUG):
         self.N = N
         self.broadcasters = broadcasters
         self.malicious_nodes = malicious_nodes
@@ -201,8 +201,9 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] peers: {[x.address for x in self.get_peers()]}")
 
         if self.node_id in self.starter_nodes:
-            self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting.")
-            await self.on_start_as_starter()
+            for _ in range(self.starter_nodes[self.node_id]): # allow multiple messages from one starter
+                self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting.")
+                await self.on_start_as_starter()
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
@@ -402,38 +403,6 @@ class BasicDolevRC(DistributedAlgorithm):
                     print(path_log)
                     return True
         return False
-
-    def new_find_disjoint_paths_ok(self, msg_id) -> bool:
-        f = self.f
-        sets = list(self.message_paths.get(msg_id))
-        # for path in sets:
-        #     path = path[1:]
-        universe = set()
-        for s in sets:
-            universe.update(s)
-        universe = sorted(universe)
-        
-        element_to_bit = {el: 1 << i for i, el in enumerate(universe)}
-        bitmasks = []
-        for s in sets:
-            bitmask = 0
-            for el in s:
-                bitmask |= element_to_bit[el]
-            bitmasks.append(bitmask)
-        best_result = []
-        def backtrack(index, current_subset, current_mask):
-            nonlocal best_result
-            if index == len(sets):
-                if len(current_subset) > len(best_result):
-                    best_result = current_subset[:]
-                return
-            backtrack(index + 1, current_subset, current_mask)
-            if (current_mask & bitmasks[index]) == 0:
-                current_subset.append(sets[index])
-                backtrack(index + 1, current_subset, current_mask | bitmasks[index])
-                current_subset.pop()
-        backtrack(0, [], 0)
-        return len(best_result) > f
 
     # region Loggin Functions
     def log_message_cnt(self, message_id):
