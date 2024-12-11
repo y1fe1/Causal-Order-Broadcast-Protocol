@@ -195,30 +195,30 @@ class BasicDolevRC(DistributedAlgorithm):
             
             else:
                 self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is ready")
-                self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} ready, states={self.node_states}")
-                self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} peers: {[x.address for x in self.get_peers()]}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] ready, states={self.node_states}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] peers: {[x.address for x in self.get_peers()]}")
 
         if self.node_id in self.starter_nodes:
-            self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} is starting.")
+            self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting.")
             await self.on_start_as_starter()
 
     async def on_start_as_starter(self):
         # By default we broadcast a message as starter, but everyone should be able to trigger a broadcast as well.
-        self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} entering on_start_as_starter")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] entering on_start_as_starter")
 
         message = self.generate_message()
-        self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} Generated message: {message}")
+        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] Generated message: {message}")
         await self.on_broadcast(message)
 
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
 
-        self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} is starting Dolev's protocol")
+        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting Dolev's protocol")
 
         peers = self.get_peers()
 
-        self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} entering on_broadcast, Peers count: {len(peers)}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] entering on_broadcast, Peers count: {len(peers)}")
 
         #if the node is a malicious node, then generate a fake msg to deliver to maximum f 
         if self.is_malicious :
@@ -229,7 +229,7 @@ class BasicDolevRC(DistributedAlgorithm):
         try:
             for peer in peers[:max_broadcast_cnt]:
                 peer_id = self.node_id_from_peer(peer)
-                broad_cast_log = f"[Node {self.node_id}] Sent message : {getattr(message, 'msg_type', 'None')} {message.message_id} to node {peer_id} in broadcast"
+                broad_cast_log = f"[Node {self.node_id}] Broadcast Message: {message.message_id} , {message.phase} to node {peer_id}"
                 self.msg_log.log(LOG_LEVEL.DEBUG,broad_cast_log)
                 
                 self.ez_send(peer, message)
@@ -238,7 +238,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in on_broadcast: {e}")
             raise e
         
-        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] delivered through Source Node")
+        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] delivered self-broadcasted message {message.message_id}")
         await self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -253,14 +253,14 @@ class BasicDolevRC(DistributedAlgorithm):
 
         if self.MD5 and self.is_delivered.get(message_id):  #if msg is delivered already, it can be discarded
 
-            MD5_log = f"[Node {self.node_id}] received an already delivered, can be discarded"
+            MD5_log = f"MD5: [Node {self.node_id}] received a msg already delivered, can be discarded"
             self.msg_log.log(LOG_LEVEL.DEBUG,MD5_log)
             
             return
 
         if self.MD4 and self.delivered_neighbour.get(message_id) and sender_id in self.delivered_neighbour.get(message_id) :  #if msg is from a delivered neighbour, it can be dsicarded
             
-            MD4_log = f"[Node {self.node_id}] received a msg from delivered neighbour, can be discarded"
+            MD4_log = f"MD4: [Node {self.node_id}] received a msg {payload.phase} from delivered neighbour, can be discarded"
             self.msg_log.log(LOG_LEVEL.DEBUG,MD4_log)
             return
 
@@ -275,7 +275,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 updated_paths = set(tuple([path for path in self.message_paths.get(message_id) if sender_id not in path]))
                 self.message_paths[message_id] = updated_paths
 
-            MD3_log = f"[Node {self.node_id} received msg with empty path from delivered node {sender_id}]"
+            MD3_log = f"MD3: [Node {self.node_id} received msg with empty path from delivered node {sender_id}]"
             self.msg_log.log(LOG_LEVEL.DEBUG, MD3_log)
 
         try:
@@ -292,10 +292,8 @@ class BasicDolevRC(DistributedAlgorithm):
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
             if self.MD1 and not self.is_malicious and not self.is_delivered.get(message_id) and sender_id == source_id:
 
-                MD1_log = f"[Node] {self.node_id} is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
-
+                MD1_log = f"MD1: [Node {self.node_id}] is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
                 self.msg_log.log(LOG_LEVEL.DEBUG, MD1_log)
-                self.msg_log.log(LOG_LEVEL.INFO, f'Node {self.node_id} delivered through MD1')
 
                 await self.trigger_delivery(new_payload)
 
@@ -308,7 +306,7 @@ class BasicDolevRC(DistributedAlgorithm):
             
             if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
-                disjoint_path_find_log = f"Enough node-disjoint paths found for {message_id}, message will be delivered"
+                disjoint_path_find_log = f"[Node {self.node_id}] Enough node-disjoint paths found for {message_id}, message will be delivered"
                 self.msg_log.log(LOG_LEVEL.INFO, disjoint_path_find_log)
 
                 await self.trigger_delivery(new_payload)
@@ -332,7 +330,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
                 # MD2 
                 if self.MD2 and self.is_delivered.get(message_id) and len(new_path) != 0 :
-                    MD2_log = f"[MD2 condition met, msg {message_id} delivered, it will not send it to its neighbour]"
+                    MD2_log = f"MD2: [Node {self.node_id}] condition met, msg {message_id} delivered, it will not be send to its neighbour]"
                     self.msg_log.log(LOG_LEVEL.DEBUG, MD2_log)
                     break
 
@@ -358,23 +356,23 @@ class BasicDolevRC(DistributedAlgorithm):
             return payload
             
     async def trigger_delivery(self, message: DolevMessage):
-        if self.is_malicious:
-            self.msg_log.log(LOG_LEVEL.WARNING, "I am malicious!!!! Why can I deliver!")
-            if self.node_id == message.source_id:
-                self.msg_log.log(LOG_LEVEL.WARNING, "Never mind. It's my own message.")
+        try:
+            if self.is_malicious:
+                self.msg_log.log(LOG_LEVEL.WARNING, "I am malicious!!!! Why can I deliver!")
+                if self.node_id == message.source_id:
+                    self.msg_log.log(LOG_LEVEL.WARNING, "Never mind. It's my own message.")
 
-        self.is_delivered[message.message_id] = True
+            self.is_delivered.update({message.message_id: True })
+            self.write_metrics(message.message_id)
+            
+            for msg_id, status in self.is_delivered.items():
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Message Type: {message.phase}, Delivered: {status}")
 
-        deliver_log = f"Node {self.node_id} delivering message: {message.message}"
-        self.msg_log.log(LOG_LEVEL.INFO, deliver_log)
-
-        self.write_metrics(message.message_id)
-        
-        for msg_id, status in self.is_delivered.items():
-            self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
-
-        #write output to the file output
-        self.msg_log.flush()        
+            #write output to the file output
+            self.msg_log.flush()
+        except Exception as e:
+            self.msg_log.log(LOG_LEVEL.ERROR, f"Error in trigger_delivery: {e}")
+            raise e    
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
         # TODO: Very likely to be wrong and thus causing nodes to not deliver a correct message.
