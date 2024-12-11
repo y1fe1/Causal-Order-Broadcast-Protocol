@@ -15,8 +15,10 @@ from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
 from cs4545.implementation.dolev_rc_new import BasicDolevRC, MessageConfig, DolevMessage
 from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
 
+from dolev_rc_new import MessageType
+
 class BrachaConfig(MessageConfig):
-    def __init__(self, broadcasters={1: 2, 2: 1}, malicious_nodes=[3], N=10, msg_level=logging.DEBUG):
+    def __init__(self, broadcasters={1: 2, 2: 1}, malicious_nodes=[], N=10, msg_level=logging.DEBUG):
         assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
         self.Optim1 = False
@@ -24,25 +26,25 @@ class BrachaConfig(MessageConfig):
         self.Optim3 = False
 
 #region Message Definition
-class MessageType(Enum):
-    SEND = 1
-    ECHO = 2
-    READY = 3
+# class MessageType(Enum):
+#     SEND = 1
+#     ECHO = 2
+#     READY = 3
 
 
-#@dataclass(msg_id=4)
-class SendMessage(DolevMessage):
-    msg_type = MessageType.SEND
+# # @dataclass(msg_id=4)
+# class SendMessage(DolevMessage):
+#     msg_type = MessageType.SEND
 
 
-#@dataclass(msg_id=5)
-class EchoMessage(DolevMessage):
-    msg_type = MessageType.ECHO
+# # @dataclass(msg_id=5)
+# class EchoMessage(DolevMessage):
+#     msg_type = MessageType.ECHO
 
 
-#@dataclass(msg_id=6)
-class ReadyMessage(DolevMessage):
-    msg_type = MessageType.READY
+# # @dataclass(msg_id=6)
+# class ReadyMessage(DolevMessage):
+#     msg_type = MessageType.READY
 
 
 
@@ -70,10 +72,10 @@ class BrachaRB(BasicDolevRC):
     def gen_output_file_path(self, test_name: str = "Bracha_Test"):
         return super().gen_output_file_path(test_name)
 
-    def generate_message(self) -> SendMessage:
+    def generate_message(self) -> DolevMessage:
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
-        id = sha256(msg.encode()).hexdigest()
-        return SendMessage(msg, id, self.node_id, [])
+        id = hash(msg)
+        return DolevMessage(msg, id, self.node_id, [])
 
     async def on_start(self):
 
@@ -92,11 +94,11 @@ class BrachaRB(BasicDolevRC):
     # event <Bracha, Broadcast | M >  do
     async def on_broadcast(self, message: DolevMessage) -> None:
         # ⟨Dolev,Broadcast|[Send,m]⟩
-        await self.broadcast_message(message.message_id, MessageType.ECHO, message, set_flag=True)
+        await self.broadcast_message(message.message_id, MessageType.SEND, message, set_flag=True)
 
     
     #event ⟨al,Deliver | p,[SEND,m]⟩
-    async def on_send(self,payload: SendMessage):
+    async def on_send(self, payload: DolevMessage):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Received a SEND message: {payload.message_id}.")
         # upon event ⟨al,Deliver | p,[SEND,m]⟩ and not sentEcho do
         # threshold = math.ceil((self.f + self.N + 1) / 2)
@@ -104,7 +106,7 @@ class BrachaRB(BasicDolevRC):
         await self.trigger_send_echo(payload.message_id, payload)
 
     # upon event ⟨al,Deliver | p,[ECHO,m]⟩ do
-    async def on_echo(self, payload: EchoMessage):
+    async def on_echo(self, payload: DolevMessage):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Received an ECHO message: {payload.message_id}.")
         # echos.insert(p)
         self.increment_echo_count(payload.message_id, payload.source_id)
@@ -115,7 +117,7 @@ class BrachaRB(BasicDolevRC):
 
 
     # upon event ⟨al,Deliver | p,[READY,m]⟩ do
-    async def on_ready(self, peer: Peer, payload: ReadyMessage):
+    async def on_ready(self, payload: DolevMessage):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Received a READY message: {payload.message_id}.")
         self.increment_ready_count(payload.message_id)
         # upon event readys.size() ≥ f+1 and not sentReady do
@@ -138,11 +140,11 @@ class BrachaRB(BasicDolevRC):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {msg_type.name} messages: {message_id}")
         
         if msg_type == MessageType.SEND:
-            await super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
+            await super().on_broadcast(self.generate_send_msg(payload.message, payload.message_id, self.node_id, []))
         elif msg_type == MessageType.ECHO:
-            await super().on_broadcast(EchoMessage(payload.message, payload.message_id, self.node_id, []))
+            await super().on_broadcast(self.generate_echo_msg(payload.message, payload.message_id, self.node_id, []))
         elif msg_type == MessageType.READY:
-            await super().on_broadcast(ReadyMessage(payload.message, payload.message_id, self.node_id, []))
+            await super().on_broadcast(self.generate_ready_msg(payload.message, payload.message_id, self.node_id, []))
 
             
     """
@@ -153,13 +155,13 @@ class BrachaRB(BasicDolevRC):
     # upon event ⟨al, Deliver | p, [SEND, m]⟩ and not sentEcho do
     #   sentEcho = True
     #   forall q do { trigger ⟨al, Send | q, [ECHO, m]⟩ }
-    async def trigger_send_echo(self, message_id: str, payload: SendMessage):
+    async def trigger_send_echo(self, message_id: str, payload: DolevMessage):
         sent_echo = self.check_if_echo_sent(message_id)
         if not sent_echo:
             await self.broadcast_message(message_id, MessageType.ECHO, payload, set_flag=True)
 
     # trigger ⟨al,Send | q,[READY,m]⟩
-    async def trigger_send_ready(self, message_id: str, count: int, threshold: int, payload: EchoMessage):
+    async def trigger_send_ready(self, message_id: str, count: int, threshold: int, payload: DolevMessage):
         """
         Triggers sending a READY message if the conditions are met.
         Ensures the payload is of a valid type and processes it accordingly.
@@ -170,12 +172,12 @@ class BrachaRB(BasicDolevRC):
 
     # ⟨Dolev,Deliver | [source,msgType,m]⟩ 
     async def trigger_delivery(self, payload: DolevMessage):
-    
-        if isinstance(payload, SendMessage):
-            self.on_echo(payload)
-        elif isinstance(payload, EchoMessage):
-            self.on_ready(payload)
-        elif isinstance(payload, ReadyMessage):
+        #TODO implement the delivery of the message
+        # if isinstance(payload, SendMessage):
+        #     self.on_echo(payload)
+        # elif isinstance(payload, EchoMessage):
+        #     await self.on_ready(payload)
+        # elif isinstance(payload, ReadyMessage):
 
             # finally, we check if the original msg is BRB delivered
             if (not self.is_delivered.get(payload.message_id) \
@@ -201,7 +203,7 @@ class BrachaRB(BasicDolevRC):
     Optimizations
     """
     
-    async def Optim1_handler(self, message_id: str, payload: EchoMessage, msg_type: MessageType):
+    async def Optim1_handler(self, message_id: str, payload: DolevMessage, msg_type: MessageType):
         if self.Optim1:
             count = 0
             threshold = 0
@@ -243,3 +245,12 @@ class BrachaRB(BasicDolevRC):
     def increment_ready_count(self, message_id):
         self.ready_count.setdefault(message_id, 0)
         self.ready_count[message_id] += 1
+        
+    def generate_send_msg(message: str, message_id: str, source_id: str, destination: List[str]):
+        return DolevMessage(message, message_id, source_id, destination, "SEND")
+    
+    def generate_echo_msg(message: str, message_id: str, source_id: str, destination: List[str]):
+        return DolevMessage(message, message_id, source_id, destination, "ECHO")
+    
+    def generate_ready_msg(message: str, message_id: str, source_id: str, destination: List[str]):
+        return DolevMessage(message, message_id, source_id, destination, "READY")
