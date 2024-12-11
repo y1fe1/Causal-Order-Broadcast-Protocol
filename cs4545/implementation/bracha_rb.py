@@ -25,30 +25,6 @@ class BrachaConfig(MessageConfig):
         self.Optim2 = False
         self.Optim3 = False
 
-#region Message Definition
-# class MessageType(Enum):
-#     SEND = 1
-#     ECHO = 2
-#     READY = 3
-
-# # @dataclass(msg_id=4)
-# class SendMessage(DolevMessage):
-#     msg_type = MessageType.SEND
-
-
-# # @dataclass(msg_id=5)
-# class EchoMessage(DolevMessage):
-#     msg_type = MessageType.ECHO
-
-
-# # @dataclass(msg_id=6)
-# class ReadyMessage(DolevMessage):
-#     msg_type = MessageType.READY
-
-
-
-# endregion
-
 class BrachaRB(BasicDolevRC):
     def __init__(self, settings: CommunitySettings, parameters=BrachaConfig()) -> None:
 
@@ -154,9 +130,9 @@ class BrachaRB(BasicDolevRC):
                         
         if msg_type == MessageType.SEND:
             new_msg = self.generate_send_msg(payload.u_id, payload.message, payload.message_id+1, self.node_id, [])
-        elif msg_type == MessageType.ECHO:
+        elif msg_type == MessageType.ECHO and self.is_Optim3_ECHO():
             new_msg = self.generate_echo_msg(payload.u_id, payload.message, payload.message_id+1, self.node_id, [])
-        elif msg_type == MessageType.READY:
+        elif msg_type == MessageType.READY and self.is_Optim3_READY():
             new_msg = self.generate_ready_msg(payload.u_id,payload.message, payload.message_id+1, self.node_id, [])
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {new_msg.phase} messages: {payload.message_id}")
@@ -273,11 +249,12 @@ class BrachaRB(BasicDolevRC):
                         self.set_echo_sent_true(message_id)
                         await self.broadcast_message(message_id, MessageType.ECHO, payload, True)
             elif msg_type == MessageType.READY:
-                if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
-                    self.set_echo_sent_true(message_id)
-                    self.set_ready_sent_true(message_id)
-                    await self.broadcast_message(message_id, MessageType.READY, payload, True)
-                elif not self.check_if_echo_sent(message_id):
+                # if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
+                #     self.set_echo_sent_true(message_id)
+                #     self.set_ready_sent_true(message_id)
+                #     await self.broadcast_message(message_id, MessageType.READY, payload, True)
+                # el
+                if not self.check_if_echo_sent(message_id):
                     self.set_echo_sent_true(message_id)
                     await self.broadcast_message(message_id, MessageType.ECHO, payload, True)
 
