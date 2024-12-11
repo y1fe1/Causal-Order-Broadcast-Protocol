@@ -1,10 +1,11 @@
 import asyncio
 import datetime
+from enum import Enum
 import os
 import random
 
 from datetime import datetime
-from typing import Dict,List
+from typing import Dict,List, Optional, Any
 
 from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
@@ -22,6 +23,11 @@ class MessageConfig:
         self.f = len(malicious_nodes)
         self.msg_level = msg_level
 
+class MessageType(Enum):
+    SEND = 1
+    ECHO = 2
+    READY = 3
+
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
 )  # The value 1 identifies this message and must be unique per community.
@@ -30,6 +36,8 @@ class DolevMessage:
     message_id: int
     source_id: int
     path: List[int]
+    phase: str
+    is_delayed: bool = True
 
 class DolevMetrics:
     node_count: int = 0
@@ -221,7 +229,7 @@ class BasicDolevRC(DistributedAlgorithm):
         try:
             for peer in peers[:max_broadcast_cnt]:
                 peer_id = self.node_id_from_peer(peer)
-                broad_cast_log = f"[Node {self.node_id}] Sent message : {message.message_id} to node {peer_id} in broadcast"
+                broad_cast_log = f"[Node {self.node_id}] Sent message : {getattr(message, 'msg_type', 'None')} {message.message_id} to node {peer_id} in broadcast"
                 self.msg_log.log(LOG_LEVEL.DEBUG,broad_cast_log)
                 
                 self.ez_send(peer, message)
@@ -273,7 +281,7 @@ class BasicDolevRC(DistributedAlgorithm):
         try:
             new_path = msg_path + [sender_id]
 
-            recieved_log = f"[Node {self.node_id}] Got message: {new_payload.message} from node: {sender_id} with path {new_path}"
+            recieved_log = f"[Node {self.node_id}] Got message: {getattr(payload, 'msg_type', 'None')} - {new_payload.message} from node: {sender_id} with path {new_path}"
             self.msg_log.log(LOG_LEVEL.INFO,recieved_log)
 
             self.set_metics_start_time(new_payload.message_id)
@@ -366,7 +374,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
         #write output to the file output
-        self.msg_log.flush()
+        self.msg_log.flush()        
     
     def find_disjoint_paths_ok(self, msg_id) -> bool:
         # TODO: Very likely to be wrong and thus causing nodes to not deliver a correct message.
