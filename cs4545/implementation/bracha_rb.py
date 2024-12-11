@@ -249,7 +249,10 @@ class BrachaRB(BasicDolevRC):
         self.ready_count.setdefault(message_id, set()).add(msg_source_id)
         
     def generate_send_msg(self,message: str, message_id: str, source_id: str, destination: List[str]):
-        return DolevMessage(message, message_id, source_id, destination, "SEND")
+        if self.Optim2:
+            return DolevMessage(message, message_id, source_id, destination, "SEND", False)
+        else:
+            return DolevMessage(message, message_id, source_id, destination, "SEND")
     
     def generate_echo_msg(self,message: str, message_id: str, source_id: str, destination: List[str]):
         return DolevMessage(message, message_id, source_id, destination, "ECHO")
