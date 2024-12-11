@@ -36,7 +36,7 @@ class DolevMessage:
     message_id: int
     source_id: int
     path: List[int]
-    phase: str
+    phase: str = "None"
     is_delayed: bool = True
 
 class DolevMetrics:
@@ -281,7 +281,7 @@ class BasicDolevRC(DistributedAlgorithm):
         try:
             new_path = msg_path + [sender_id]
 
-            recieved_log = f"[Node {self.node_id}] Got message: {getattr(payload, 'msg_type', 'None')} - {new_payload.message} from node: {sender_id} with path {new_path}"
+            recieved_log = f"[Node {self.node_id}] Got message: {payload.phase} - {new_payload.message} from node: {sender_id} with path {new_path}"
             self.msg_log.log(LOG_LEVEL.INFO,recieved_log)
 
             self.set_metics_start_time(new_payload.message_id)
@@ -355,7 +355,7 @@ class BasicDolevRC(DistributedAlgorithm):
         if self.is_malicious and (self.node_id not in self.starter_nodes):
             return self.execute_mal_process(payload)
         else: 
-            return DolevMessage(payload.message, payload.message_id, payload.source_id, payload.path)
+            return payload
             
     async def trigger_delivery(self, message: DolevMessage):
         if self.is_malicious:
@@ -451,7 +451,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
     def write_metrics(self, message_id):
         self.log_delivered_status(message_id, True)
-        self.set_metric_end_time(message_id)
+        #self.set_metric_end_time(message_id)
         self.log_message_history()
         
     def metrics_init(self):
