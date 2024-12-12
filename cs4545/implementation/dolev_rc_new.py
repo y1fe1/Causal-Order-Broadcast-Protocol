@@ -249,6 +249,7 @@ class BasicDolevRC(DistributedAlgorithm):
         # if the node is malicious, it will modify the msg
         new_payload = self.generate_relay_message(payload)
 
+        self.msg_log.get_deliver_info_msg(new_payload.u_id).byte_sent += len(new_payload.message)
         self.msg_log.get_deliver_info_msg(new_payload.message_id).byte_sent += len(new_payload.message)
 
         if self.MD5 and self.is_delivered.get(message_id):  #if msg is delivered already, it can be discarded

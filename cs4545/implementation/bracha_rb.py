@@ -292,9 +292,9 @@ class BrachaRB(BasicDolevRC):
             if msg_type == MessageType.ECHO:
                 count = len(list(self.echo_count.get(uuid)))
                 threshold = self.f + 1
-                if count >= threshold and not self.check_if_echo_sent(uuid):
-                    self.set_echo_sent_true(uuid)
-                    await self.broadcast_message(MessageType.ECHO, payload)
+                if count >= threshold :
+                    self.msg_log.log(LOG_LEVEL.DEBUG,f"OPT1 Triggered")
+                    self.trigger_send_echo(payload)
                         
             elif msg_type == MessageType.READY:
                 # if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
@@ -302,21 +302,19 @@ class BrachaRB(BasicDolevRC):
                 #     self.set_ready_sent_true(uuid)
                 #     await self.broadcast_message(uuid, MessageType.READY, payload, True)
                 # el
-                if not self.check_if_echo_sent(uuid):
-                    self.set_echo_sent_true(uuid)
-                    await self.broadcast_message(MessageType.ECHO, payload)
+               self.trigger_send_echo(payload)
 
     def is_Optim3_ECHO(self) -> bool:
         if not self.Optim3:
             return True
         if self.Optim3:
-            return self.node_id <= self.Optim3_ECHO
+            return self.node_id < self.Optim3_ECHO
     
     def is_Optim3_READY(self) -> bool:
         if not self.Optim3:
             return True
         if self.Optim3:
-            return self.node_id <= self.Optim3_READY
+            return self.node_id < self.Optim3_READY
 
     """
     Getter & Setter

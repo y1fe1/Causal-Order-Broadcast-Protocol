@@ -123,7 +123,9 @@ class message_logger:
 
     def set_metric_end_time(self,msg_id):
         self.get_deliver_info_msg(msg_id).end_time = datetime.now()
-        self.get_deliver_info_msg(msg_id).latency = self.get_deliver_info_msg(msg_id).start_time - self.get_deliver_info_msg(msg_id).end_time
+        latency = self.get_deliver_info_msg(msg_id).end_time - self.get_deliver_info_msg(msg_id).start_time
+        latency = round(latency.total_seconds() * 1000,3)
+        self.get_deliver_info_msg(msg_id).latency = latency
 
     def set_metric_delivered_status(self,msg_id, status=True):
         self.log_metrics.delivered_msg_cnt += 1
@@ -145,7 +147,7 @@ class message_logger:
         time_diff = (bracha_msg.end_time - bracha_msg.start_time)
         bracha_msg.latency = round(time_diff.total_seconds() * 1000,3)
         bracha_msg.recieved_cnt = sum(phase_msg.recieved_cnt for phase_msg in list_phase_msg)
-        bracha_msg.byte_sent = sum(phase_msg.byte_sent for phase_msg in list_phase_msg)
+        #bracha_msg.byte_sent = sum(phase_msg.byte_sent for phase_msg in list_phase_msg)
 
     def metric_summary_toString(self):
         return (
