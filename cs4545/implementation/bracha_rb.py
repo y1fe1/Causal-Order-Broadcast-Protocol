@@ -50,9 +50,6 @@ class BrachaRB(BasicDolevRC):
     def gen_output_file_path(self, test_name: str = "Bracha_Test"):
         return super().gen_output_file_path(test_name)
 
-    def generate_message_id(self, msg: str) -> int:
-        self.message_broadcast_cnt += 1
-        return self.node_id * 169 + self.message_broadcast_cnt * 13 + (hash(msg) % 997)
     
     def generate_message(self) -> DolevMessage:
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
@@ -60,9 +57,24 @@ class BrachaRB(BasicDolevRC):
         msg_id = self.generate_message_id(msg)
         return DolevMessage(u_id, msg, msg_id, self.node_id, [], "BRACHA")
     
+    def generate_message_id(self, msg: str) -> int:
+        msg = random.shuffle(list(msg)) # randomize it so we create unique id
+        self.message_broadcast_cnt += 1
+        return self.node_id * 169 + self.message_broadcast_cnt * 13 + (hash(msg) % 997)
+    
     def generate_phase_msg(self, og_msg, msg_type) :
-        pass
-
+        u_id, message, source_id, destination = og_msg.u_id, og_msg.message, self.node_id, []
+        phase_msg_id = self.generate_message_id(message)
+        if msg_type == MessageType.SEND:
+            if self.Optim2:
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, "SEND", False)
+            else:
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, "SEND")
+        elif msg_type == MessageType.ECHO and self.is_Optim3_ECHO():
+            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, "ECHO")
+        elif msg_type == MessageType.READY and self.is_Optim3_READY():
+            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, "READY")
+        
     async def on_start(self):
 
         # sentEcho = sentReady = delivered = False echos = readys = ∅ clear them if needed
@@ -80,7 +92,7 @@ class BrachaRB(BasicDolevRC):
     # event <Bracha, Broadcast | M >  do
     async def on_broadcast(self, message: DolevMessage) -> None:
         # ⟨Dolev,Broadcast|[Send,m]⟩
-        await self.broadcast_message(message.message_id, MessageType.SEND, message)
+        await self.broadcast_message(MessageType.SEND, message)
 
     
     #event ⟨al,Deliver | p,[SEND,m]⟩
@@ -125,14 +137,9 @@ class BrachaRB(BasicDolevRC):
         await self.Optim1_handler(payload.u_id, payload, MessageType.ECHO)
 
     #  ⟨Dolev,Broadcast|[mType,m]⟩ ensure each msg is broadcasted to all node through dolev protocol
-    async def broadcast_message(self, message_id: str, msg_type: MessageType, payload: DolevMessage):
-                        
-        if msg_type == MessageType.SEND:
-            new_msg = self.generate_send_msg(payload.u_id, payload.message, payload.message_id+1, self.node_id, [])
-        elif msg_type == MessageType.ECHO and self.is_Optim3_ECHO():
-            new_msg = self.generate_echo_msg(payload.u_id, payload.message, payload.message_id+1, self.node_id, [])
-        elif msg_type == MessageType.READY and self.is_Optim3_READY():
-            new_msg = self.generate_ready_msg(payload.u_id,payload.message, payload.message_id+1, self.node_id, [])
+    async def broadcast_message(self, msg_type: MessageType, payload: DolevMessage):
+
+        new_msg = self.generate_phase_msg(payload, msg_type)
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {new_msg.phase} messages: {payload.message_id}")
         await super().on_broadcast(new_msg)
@@ -150,7 +157,7 @@ class BrachaRB(BasicDolevRC):
         sent_echo = self.check_if_echo_sent(u_id)
         if not sent_echo:
             self.set_echo_sent_true(u_id)
-            await self.broadcast_message(u_id, MessageType.ECHO, payload)
+            await self.broadcast_message(MessageType.ECHO, payload)
 
     # trigger ⟨al,Send | q,[READY,m]⟩
     async def trigger_send_ready(self, u_id: str, count: int, threshold: int, payload: DolevMessage):
@@ -164,7 +171,7 @@ class BrachaRB(BasicDolevRC):
 
         if not sent_ready and count >= threshold:
             self.set_ready_sent_true(u_id)
-            await self.broadcast_message(u_id, MessageType.READY, payload)
+            await self.broadcast_message(MessageType.READY, payload)
 
     # ⟨Dolev,Deliver | [source,msgType,m]⟩ 
     async def trigger_delivery(self, payload: DolevMessage):
@@ -255,7 +262,7 @@ class BrachaRB(BasicDolevRC):
                 threshold = self.f + 1
                 if count >= threshold and not self.check_if_echo_sent(uuid):
                     self.set_echo_sent_true(uuid)
-                    await self.broadcast_message(uuid, MessageType.ECHO, payload)
+                    await self.broadcast_message(MessageType.ECHO, payload)
                         
             elif msg_type == MessageType.READY:
                 # if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
@@ -265,7 +272,7 @@ class BrachaRB(BasicDolevRC):
                 # el
                 if not self.check_if_echo_sent(uuid):
                     self.set_echo_sent_true(uuid)
-                    await self.broadcast_message(uuid, MessageType.ECHO, payload)
+                    await self.broadcast_message(MessageType.ECHO, payload)
 
     def is_Optim3_ECHO(self) -> bool:
         if not self.Optim3:
@@ -301,17 +308,17 @@ class BrachaRB(BasicDolevRC):
     def increment_ready_count(self, u_id, msg_source_id):
         self.ready_count.setdefault(u_id, set()).add(msg_source_id)
         
-    def generate_send_msg(self, u_id, message: str, message_id: str, source_id: str, destination: List[str]): 
-        if self.Optim2:
-            return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "SEND", False)
-        else:
-            return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "SEND")
+    # def generate_send_msg(self, u_id, message: str, message_id: str, source_id: str, destination: List[str]): 
+    #     if self.Optim2:
+    #         return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "SEND", False)
+    #     else:
+    #         return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "SEND")
     
-    def generate_echo_msg(self, u_id, message: str, message_id: str, source_id: str, destination: List[str]):
-        return DolevMessage(u_id,message, self.generate_message_id(message), source_id, destination, "ECHO")
+    # def generate_echo_msg(self, u_id, message: str, message_id: str, source_id: str, destination: List[str]):
+    #     return DolevMessage(u_id,message, self.generate_message_id(message), source_id, destination, "ECHO")
     
-    def generate_ready_msg(self,u_id, message: str, message_id: str, source_id: str, destination: List[str]):
-        return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "READY")
+    # def generate_ready_msg(self,u_id, message: str, message_id: str, source_id: str, destination: List[str]):
+    #     return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "READY")
     
     
 def write_to_file(id: int, uid: int):
