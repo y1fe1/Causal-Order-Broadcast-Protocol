@@ -55,7 +55,7 @@ class BrachaRB(BasicDolevRC):
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
         u_id = hash(msg) % 9997
         msg_id = self.generate_message_id(msg)
-        return DolevMessage(u_id, msg, msg_id, self.node_id, [], "BRACHA")
+        return DolevMessage(u_id, msg, msg_id, self.node_id, [], MessageType.BRACHA.value)
     
     def generate_message_id(self, msg: str) -> int:
         msg = random.shuffle(list(msg)) # randomize it so we create unique id
@@ -67,13 +67,13 @@ class BrachaRB(BasicDolevRC):
         phase_msg_id = self.generate_message_id(message)
         if msg_type == MessageType.SEND:
             if self.Optim2:
-                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, "SEND", False)
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, msg_type.value, False)
             else:
-                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, "SEND")
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, msg_type.value)
         elif msg_type == MessageType.ECHO and self.is_Optim3_ECHO():
-            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, "ECHO")
+            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, msg_type.value)
         elif msg_type == MessageType.READY and self.is_Optim3_READY():
-            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, "READY")
+            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, msg_type.value)
         
     async def on_start(self):
 
@@ -101,7 +101,7 @@ class BrachaRB(BasicDolevRC):
         # upon event ⟨al,Deliver | p,[SEND,m]⟩ and not sentEcho do
         # threshold = math.ceil((self.f + self.N + 1) / 2)
         # await self.trigger_send_echo(message_id, self.echo_count[message_id], threshold, payload)
-        await self.trigger_send_echo(payload.u_id, payload)
+        await self.trigger_send_echo(payload)
 
     # upon event ⟨al,Deliver | p,[ECHO,m]⟩ do
     async def on_echo(self, payload: DolevMessage):
@@ -112,7 +112,7 @@ class BrachaRB(BasicDolevRC):
         # upon event echos.size() ≥ ⌈N+f+1⌉ and not sentReady do
         threshold = math.ceil((self.f + self.N + 1) / 2)
         self.msg_log.log(LOG_LEVEL.DEBUG, f"echo nodes: {list(self.echo_count.values())}")
-        await self.trigger_send_ready(payload.u_id, len(list(self.echo_count.get(payload.u_id))), threshold, payload)
+        await self.trigger_send_ready(len(list(self.echo_count.get(payload.u_id))), threshold, payload)
         await self.Optim1_handler(payload.u_id, payload, MessageType.ECHO)
 
 
@@ -124,7 +124,7 @@ class BrachaRB(BasicDolevRC):
         # upon event readys.size() ≥ f+1 and not sentReady do
         threshold = self.f + 1
         self.msg_log.log(LOG_LEVEL.DEBUG, f"ready nodes: {list(self.ready_count.values())}")
-        await self.trigger_send_ready(payload.u_id, len(list(self.ready_count.get(payload.u_id))), threshold, payload)
+        await self.trigger_send_ready(len(list(self.ready_count.get(payload.u_id))), threshold, payload)
 
         # upon event readys.size() ≥ 2f+1 and not delivered do
         delivered_threshold = (len(self.ready_count.get(payload.u_id)) >= 2*self.f+1) \
@@ -153,14 +153,16 @@ class BrachaRB(BasicDolevRC):
     # upon event ⟨al, Deliver | p, [SEND, m]⟩ and not sentEcho do
     #   sentEcho = True
     #   forall q do { trigger ⟨al, Send | q, [ECHO, m]⟩ }
-    async def trigger_send_echo(self, u_id: str, payload: DolevMessage):
+    async def trigger_send_echo(self, payload: DolevMessage):
+        u_id = payload.u_id
         sent_echo = self.check_if_echo_sent(u_id)
         if not sent_echo:
             self.set_echo_sent_true(u_id)
             await self.broadcast_message(MessageType.ECHO, payload)
 
     # trigger ⟨al,Send | q,[READY,m]⟩
-    async def trigger_send_ready(self, u_id: str, count: int, threshold: int, payload: DolevMessage):
+    async def trigger_send_ready(self,count: int, threshold: int, payload: DolevMessage):
+        u_id = payload.u_id
         """
         Triggers sending a READY message if the conditions are met.
         Ensures the payload is of a valid type and processes it accordingly.

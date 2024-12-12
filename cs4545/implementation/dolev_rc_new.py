@@ -24,10 +24,10 @@ class MessageConfig:
         self.msg_level = msg_level
 
 class MessageType(Enum):
-    SEND = 1
-    ECHO = 2
-    READY = 3
-    BRACHA = 4
+    SEND = "SEND"
+    ECHO = "ECHO"
+    READY = "READY"
+    BRACHA = "BRACHA"
 
 @dataclass(
     msg_id=3 # TODO: should this be different for different messages?
