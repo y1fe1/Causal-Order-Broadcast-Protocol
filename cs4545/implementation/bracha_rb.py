@@ -62,6 +62,8 @@ class BrachaRB(BasicDolevRC):
         self.message_broadcast_cnt += 1
         return self.node_id * 169 + self.message_broadcast_cnt * 13 + (hash(msg) % 997)
     
+    def generate_malicious_message_id(self, msg: str) -> int:
+        return self.node_id * 169 + (hash(msg) % 997)
     def generate_phase_msg(self, og_msg, msg_type) :
         u_id, message, source_id, destination = og_msg.u_id, og_msg.message, self.node_id, []
         phase_msg_id = self.generate_message_id(message)
@@ -201,7 +203,7 @@ class BrachaRB(BasicDolevRC):
             self.write_metrics(payload_og_id)
             
             for u_id, status in self.is_BRBdelivered.items():
-                self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {u_id}, Delivered: {status}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {u_id}, Delivered: {status}, content: {payload.message}")
 
             self.msg_log.flush()
 
@@ -228,7 +230,11 @@ class BrachaRB(BasicDolevRC):
     def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
         if payload:
             original_msg = payload.message
-            fake_message = f"fake behaviour set on: {original_msg}"
+            fake_message = original_msg
+            
+            prefix = original_msg.split()[0] if original_msg else ""
+            if prefix != 'fake':
+                fake_message = f"fake behaviour set on: {original_msg}"                
             
             self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] tampered the original msg")
             
