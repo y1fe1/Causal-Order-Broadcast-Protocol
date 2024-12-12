@@ -46,6 +46,8 @@ class BrachaRB(BasicDolevRC):
         
         self.Optim3_ECHO = math.ceil((self.f + self.N + 1) / 2)
         self.Optim3_READY = 2 * self.f + 1
+        
+        self.uid_cnt = 0
 
     def gen_output_file_path(self, test_name: str = "Bracha_Test"):
         return super().gen_output_file_path(test_name)
@@ -53,7 +55,7 @@ class BrachaRB(BasicDolevRC):
     
     def generate_message(self) -> DolevMessage:
         msg = "".join([random.choice(["uk", "pk", "mkk", "fk"]) for _ in range(6)])
-        u_id = hash(msg) % 9997
+        u_id = self.get_uid_pred()
         msg_id = self.generate_message_id(msg)
         return DolevMessage(u_id, msg, msg_id, self.node_id, [], MessageType.BRACHA.value)
     
@@ -77,6 +79,23 @@ class BrachaRB(BasicDolevRC):
             return DolevMessage(u_id,message, phase_msg_id, source_id, destination, msg_type.value)
         elif msg_type == MessageType.READY and self.is_Optim3_READY():
             return DolevMessage(u_id, message, phase_msg_id, source_id, destination, msg_type.value)
+        
+    def get_uid_pred(self):
+        if self.node_id == 1:
+            if self.uid_cnt == 0:
+                self.uid_cnt += 1
+                return 1
+            return 2
+        
+        if self.node_id == 2:
+            return 3
+        
+        if self.node_id == 3:
+            if self.uid_cnt == 0:
+                self.uid_cnt += 1
+                return 4
+            return 5
+        
         
     async def on_start(self):
 
