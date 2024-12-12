@@ -94,6 +94,12 @@ class BrachaRB(BasicDolevRC):
     # event <Bracha, Broadcast | M >  do
     async def on_broadcast(self, message: DolevMessage) -> None:
         # ⟨Dolev,Broadcast|[Send,m]⟩
+        
+        #log the bracha msg at first
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"log the bracha msg at first {message.u_id}")
+        self.msg_log.get_deliver_info_msg(message.u_id)
+        self.msg_log.set_metric_start_time(message.u_id)
+
         await self.broadcast_message(MessageType.SEND, message)
 
     
@@ -143,7 +149,7 @@ class BrachaRB(BasicDolevRC):
 
         new_msg = self.generate_phase_msg(payload, msg_type)
 
-        self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {new_msg.phase} messages: {payload.message_id}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"Sent {new_msg.phase} messages: {new_msg.message_id}")
         await super().on_broadcast(new_msg)
 
             
@@ -196,18 +202,16 @@ class BrachaRB(BasicDolevRC):
     def trigger_Bracha_Delivery(self, payload):
 
         try:
-            payload_og_id = payload.u_id # original id to identify the message we want to deliver
-            self.is_BRBdelivered.update({payload_og_id: True})
+            u_id = payload.u_id # original id to identify the message we want to deliver
+            self.is_BRBdelivered.update({u_id: True})
             self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} BRB Delivered a message: {payload.u_id}.")
 
-            self.write_metrics(payload_og_id)
+            self.write_bracha_msg_metric(u_id)
             
             for u_id, status in self.is_BRBdelivered.items():
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {u_id}, Delivered: {status}, content: {payload.message}")
 
             self.msg_log.flush()
-
-            write_to_file(self.node_id, payload.u_id)
 
         except Exception as e:
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in trigger_Bracha_Delivery: {e}")
@@ -328,8 +332,7 @@ class BrachaRB(BasicDolevRC):
     # def generate_ready_msg(self,u_id, message: str, message_id: str, source_id: str, destination: List[str]):
     #     return DolevMessage(u_id, message, self.generate_message_id(message), source_id, destination, "READY")
     
-    
-def write_to_file(id: int, uid: int):
-    # for debug only
-    with open('output/output.txt', 'a') as f:
-        f.write(f'Node {id} delivered a message: {uid}.\n')
+    def write_bracha_msg_metric(self,u_id):
+        self.log_delivered_status(u_id, True)
+        self.set_metric_end_time(u_id)
+        self.msg_log.log_msg_summary(u_id, MessageType.BRACHA)

@@ -5,7 +5,7 @@ import asyncio
 
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Literal
+from typing import Dict, Literal, Set
 from datetime import datetime
 
 class LOG_LEVEL(Enum):
@@ -16,17 +16,20 @@ class LOG_LEVEL(Enum):
 
 class delivered_msg_info : 
     def __init__(self):
+        self.u_id: int = 0
         self.start_time: float = None  # Initialize as None to indicate it's unset
         self.end_time: float = None
         self.latency: float = 0.0
         self.is_delivered: bool = False
-        self.recieved_msg_cnt: int = 0
+        self.recieved_cnt: int = 0
+        self.byte_sent: int = 0
 
 class OutputMetrics:
     total_node_count: int = 0
     total_byzantine_count: int = 0
     total_connectivity: int = 0
 
+    delivered_u_id: Set[int] = set()
     delivered_info: Dict[int, delivered_msg_info]
     delivered_msg_cnt: int = 0
     message_recieved: int
@@ -44,13 +47,12 @@ class OutputMetrics:
     def msg_summary_toString(self):
 
         msg_summary_list = [
-            f"Msg {msg_id}: Start Time={info.start_time}, End Time={info.end_time}, "
-            f"Latency={info.latency}, Is Delivered={info.is_delivered}, "
-            f"Received Msg Count={info.recieved_msg_cnt}"   
-            for msg_id, info in self.delivered_info.items()
+            f"{msg_id}, {info.start_time}, {info.end_time}, {info.latency}, "
+            f"{info.is_delivered}, {info.recieved_cnt}, {info.byte_sent}"
+            for msg_id, info in self.delivered_info.items() if msg_id in self.delivered_u_id
         ]
 
-        return msg_summary_list
+        return "\n".join(msg_summary_list)
 
 
 class message_logger:
@@ -128,11 +130,22 @@ class message_logger:
         self.get_deliver_info_msg(msg_id).is_delivered = True
 
     def log_message_cnt(self, msg_id): 
-        self.get_deliver_info_msg(msg_id).recieved_msg_cnt += 1
+        self.get_deliver_info_msg(msg_id).recieved_cnt += 1
     
     def set_message_history(self,message_recieved, byte_sent):
         self.log_metrics.message_recieved = message_recieved
         self.log_metrics.byte_sent = byte_sent
+
+    #for bracha only for now
+    def log_msg_summary(self,u_id,msg_type):
+        self.log_metrics.delivered_u_id.add(u_id)
+        bracha_msg = self.get_deliver_info_msg(u_id)
+        list_phase_msg = [msg_info for msg_info in self.log_metrics.delivered_info.values() if msg_info.u_id == u_id]
+        
+        time_diff = (bracha_msg.end_time - bracha_msg.start_time)
+        bracha_msg.latency = round(time_diff.total_seconds() * 1000,3)
+        bracha_msg.recieved_cnt = sum(phase_msg.recieved_cnt for phase_msg in list_phase_msg)
+        bracha_msg.byte_sent = sum(phase_msg.byte_sent for phase_msg in list_phase_msg)
 
     def metric_summary_toString(self):
         return (
@@ -141,6 +154,39 @@ class message_logger:
             f"{self.log_metrics.delivered_msg_cnt},"
             f"{self.log_metrics.message_recieved},{self.log_metrics.byte_sent}"
         )
+    
+    def msg_summary_toString(self):
+        return self.log_metrics.msg_summary_toString()
+    
+    def output_msg_summary_to_csv(self, metrics_summary):
+        csv_output_path = (self.log_file_path.parent
+                           / f"{self.log_file_path.stem}-msg_summary.csv")
+        
+        is_file_exist = csv_output_path.exists() and csv_output_path.stat().st_size > 0
+
+        metrics_list = [item.strip() for item in metrics_summary.split("\n")]
+
+        header = [
+            "msg_id",
+            "start_time",
+            "end_time",
+            "latency",
+            "is_delivered",
+            "recieved_cnt",
+            "byte_sent"
+        ]
+        
+        with open(csv_output_path, "w", newline="") as csv_output:
+
+            writer = csv.writer(csv_output)
+
+            writer.writerow(header)
+            
+            for metric in metrics_list:
+                metric_data = metric.split(", ")
+                writer.writerow(metric_data)
+
+        self.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} outputs to CSV File {csv_output_path}")
 
     def output_metrics_to_csv(self,metrics_summary) :
         
@@ -175,15 +221,11 @@ class message_logger:
     # Write the log output to files \ this should occure every time a deliver event is triggered?
     def flush(self):
 
-        msg_summary_list = self.log_metrics.msg_summary_toString()
-
-        for msg_summary in msg_summary_list:
-            self.log(LOG_LEVEL.DEBUG, msg_summary)   
+        msg_summary_list = self.msg_summary_toString()
 
         metrics_summary = self.metric_summary_toString()
 
-        self.log(LOG_LEVEL.INFO, metrics_summary)
-
         self.file_handler.flush()
+        self.output_msg_summary_to_csv(msg_summary_list)
         self.output_metrics_to_csv(metrics_summary)
 

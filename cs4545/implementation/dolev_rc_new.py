@@ -41,17 +41,6 @@ class DolevMessage:
     phase: str = "None"
     is_delayed: bool = True
 
-class DolevMetrics:
-    node_count: int = 0
-    byzantine_count: int = 0
-    delivered_cnt: int = 0
-    connectivity: int = 0
-    message_count: int = 0
-    last_message_count: int = 0
-    start_time: Dict[int, float] = {}
-    end_time: Dict[int, float] = {}
-    latency: float = 0.0
-
 class BasicDolevRC(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings, parameters: MessageConfig=MessageConfig()) -> None:
         super().__init__(settings)
@@ -93,7 +82,6 @@ class BasicDolevRC(DistributedAlgorithm):
         # log related stuffs
         self.node_outputMetrics = OutputMetrics(self)
         self.msg_level = parameters.msg_level
-        self.metrics = DolevMetrics()
 
     def gen_output_file_path(self, test_name: str ="Dolev_Test") : 
         '''
@@ -201,8 +189,8 @@ class BasicDolevRC(DistributedAlgorithm):
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] peers: {[x.address for x in self.get_peers()]}")
 
         if self.node_id in self.starter_nodes:
-            for _ in range(self.starter_nodes[self.node_id]): # allow multiple messages from one starter
-                self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting.")
+            for cnt in range(self.starter_nodes[self.node_id]): # allow multiple messages from one starter
+                self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting. Round: {cnt}")
                 await self.on_start_as_starter()
 
     async def on_start_as_starter(self):
@@ -222,6 +210,13 @@ class BasicDolevRC(DistributedAlgorithm):
         peers = self.get_peers()
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] entering on_broadcast, Peers count: {len(peers)}")
+
+
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"log the bracha msg at first {message.u_id}")
+        self.msg_log.get_deliver_info_msg(message.u_id)
+        self.msg_log.set_metric_start_time(message.u_id)
+        self.msg_log.get_deliver_info_msg(message.message_id).u_id = message.u_id
+        self.set_metics_start_time(message.message_id)
 
         #if the node is a malicious node, then generate a fake msg to deliver to maximum f 
         if self.is_malicious :
@@ -267,9 +262,6 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.DEBUG,MD4_log)
             return
 
-        # increment log cnt for this message
-        self.log_message_cnt(message_id)
-
         if self.MD3 and not msg_path:   #if msg_path is empty, indicate the sender has delivered the msg (#MD2)
 
             self.delivered_neighbour.setdefault(message_id, set()).add(sender_id)
@@ -284,13 +276,22 @@ class BasicDolevRC(DistributedAlgorithm):
         try:
             new_path = msg_path + [sender_id]
 
-            recieved_log = f"[Node {self.node_id}] Got message: {payload.phase} - {new_payload.message} from node: {sender_id} with path {new_path}"
+            recieved_log = f"[Node {self.node_id}] Got message: {payload.phase} - {new_payload.message_id} from node: {sender_id} with path {new_path}"
             self.msg_log.log(LOG_LEVEL.INFO,recieved_log)
 
+            #increment msg log stat
+
+            #log the bracha msg at first
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"log the bracha msg at first {new_payload.u_id}")
+            self.msg_log.get_deliver_info_msg(new_payload.u_id)
+            self.msg_log.set_metric_start_time(new_payload.u_id)
+            self.msg_log.get_deliver_info_msg(new_payload.message_id).u_id = new_payload.u_id
             self.set_metics_start_time(new_payload.message_id)
+            self.log_message_cnt(new_payload.message_id)
+            self.msg_log.get_deliver_info_msg(new_payload.message_id).byte_sent += len(new_payload.message)
 
             self.message_paths.setdefault(new_payload.message_id, set()).add(tuple(new_path))
-            self.msg_log.log(LOG_LEVEL.DEBUG, f'Node {self.node_id}, {payload.message_id} message paths: {self.message_paths}')
+            self.msg_log.log(LOG_LEVEL.DEBUG, f'Node {self.node_id}, {payload.message_id} message paths: {self.message_paths.get(payload.message_id)}')
             
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
             if self.MD1 and not self.is_malicious and not self.is_delivered.get(message_id) and sender_id == source_id:
@@ -375,6 +376,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
             #write output to the file output
             self.msg_log.flush()
+
         except Exception as e:
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in trigger_delivery: {e}")
             raise e    
@@ -422,12 +424,6 @@ class BasicDolevRC(DistributedAlgorithm):
 
     def write_metrics(self, message_id):
         self.log_delivered_status(message_id, True)
-        #self.set_metric_end_time(message_id)
+        self.set_metric_end_time(message_id)
         self.log_message_history()
-        
-    def metrics_init(self):
-        self.metrics.node_count = len(self.nodes)
-        self.metrics.byzantine_count = len(self.malicious_nodes)
-        self.metrics.connectivity = len(self.get_peers())
-        self.metrics.message_count = 0
     #endregion
