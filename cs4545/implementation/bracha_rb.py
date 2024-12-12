@@ -18,11 +18,11 @@ from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LE
 from cs4545.implementation.dolev_rc_new import MessageType
 
 class BrachaConfig(MessageConfig):
-    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N=10, msg_level=logging.DEBUG):
+    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N=15, msg_level=logging.DEBUG):
         assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
-        self.Optim1 = True
-        self.Optim2 = True
+        self.Optim1 = False
+        self.Optim2 = False
         self.Optim3 = False     # still not work
 
 class BrachaRB(BasicDolevRC):
@@ -251,7 +251,7 @@ class BrachaRB(BasicDolevRC):
             threshold = 0
             
             if msg_type == MessageType.ECHO:
-                count = self.echo_count.get(uuid, 0)
+                count = len(list(self.echo_count.get(uuid)))
                 threshold = self.f + 1
                 if count >= threshold and not self.check_if_echo_sent(uuid):
                     self.set_echo_sent_true(uuid)
