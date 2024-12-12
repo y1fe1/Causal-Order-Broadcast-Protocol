@@ -18,7 +18,7 @@ from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LE
 from cs4545.implementation.dolev_rc_new import MessageType
 
 class BrachaConfig(MessageConfig):
-    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N=10, msg_level=logging.DEBUG):
+    def __init__(self, broadcasters={1:1, 2:1, 3:1}, malicious_nodes=[3,4], N=10, msg_level=logging.DEBUG):
         assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
         self.Optim1 = False
@@ -49,7 +49,7 @@ class BrachaRB(BasicDolevRC):
         
         self.uid_cnt = 0
 
-    def gen_output_file_path(self, test_name: str = "Bracha_Test"):
+    def gen_output_file_path(self, test_name: str = "Bracha_Test_mal"):
         return super().gen_output_file_path(test_name)
 
     
@@ -247,9 +247,10 @@ class BrachaRB(BasicDolevRC):
         msg = f"fake news!"
         u_id = hash(msg)
         msg_id = self.generate_message_id(msg)
-        self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] generated malicious msg to send")
-    
-        return DolevMessage(u_id, msg, msg_id, self.node_id, [])
+
+        mal_msg = DolevMessage(u_id, msg, msg_id, self.node_id, [], MessageType.BRACHA.value)
+        self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] generated malicious msg {mal_msg} to send")
+        return mal_msg
     
     def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
         if payload:
@@ -257,14 +258,11 @@ class BrachaRB(BasicDolevRC):
             fake_message = original_msg
             
             prefix = original_msg.split()[0] if original_msg else ""
-            if prefix != 'fake':
-                fake_message = f"fake behaviour set on: {original_msg}"                
-            
-            self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] tampered the original msg")
-            
-            u_id = hash(fake_message)
-            fake_id = self.generate_message_id(fake_message)
-            return DolevMessage(u_id, fake_message, fake_id, payload.source_id, payload.path)
+            if prefix == 'fake':             
+                self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] Recieved A fake msg with u_id {payload.u_id}")
+                return DolevMessage(payload.u_id, payload.message, payload.message_id, payload.source_id, payload.path, MessageType.READY.value)
+            else:
+                return payload
 
     def execute_mal_process(self, msg) -> DolevMessage:
         (behaviour, args) = {

@@ -288,6 +288,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.DEBUG, f"log the bracha msg at first {new_payload.u_id}")
             self.msg_log.get_deliver_info_msg(new_payload.u_id)
             self.msg_log.set_metric_start_time(new_payload.u_id)
+
             self.msg_log.get_deliver_info_msg(new_payload.message_id).u_id = new_payload.u_id
             self.set_metics_start_time(new_payload.message_id)
             self.log_message_cnt(new_payload.message_id)
