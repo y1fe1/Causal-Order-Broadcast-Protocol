@@ -249,6 +249,8 @@ class BasicDolevRC(DistributedAlgorithm):
         # if the node is malicious, it will modify the msg
         new_payload = self.generate_relay_message(payload)
 
+        self.msg_log.get_deliver_info_msg(new_payload.message_id).byte_sent += len(new_payload.message)
+
         if self.MD5 and self.is_delivered.get(message_id):  #if msg is delivered already, it can be discarded
 
             MD5_log = f"MD5: [Node {self.node_id}] received a msg already delivered, can be discarded"
@@ -288,7 +290,6 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.get_deliver_info_msg(new_payload.message_id).u_id = new_payload.u_id
             self.set_metics_start_time(new_payload.message_id)
             self.log_message_cnt(new_payload.message_id)
-            self.msg_log.get_deliver_info_msg(new_payload.message_id).byte_sent += len(new_payload.message)
 
             self.message_paths.setdefault(new_payload.message_id, set()).add(tuple(new_path))
             self.msg_log.log(LOG_LEVEL.DEBUG, f'Node {self.node_id}, {payload.message_id} message paths: {self.message_paths.get(payload.message_id)}')
@@ -371,8 +372,8 @@ class BasicDolevRC(DistributedAlgorithm):
             
             self.msg_log.log(LOG_LEVEL.DEBUG, f"New Delivered Messages: Message ID: {message.message_id}, TYPE: {message.phase}")
 
-            for msg_id, status in self.is_delivered.items():
-                self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
+            #for msg_id, status in self.is_delivered.items():
+            #    self.msg_log.log(LOG_LEVEL.DEBUG, f"Delivered Messages: Message ID: {msg_id}, Delivered: {status}")
 
             #write output to the file output
             self.msg_log.flush()

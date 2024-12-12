@@ -18,12 +18,12 @@ from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LE
 from cs4545.implementation.dolev_rc_new import MessageType
 
 class BrachaConfig(MessageConfig):
-    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N=15, msg_level=logging.DEBUG):
+    def __init__(self, broadcasters={1:2, 2:1, 3:2}, malicious_nodes=[], N=10, msg_level=logging.DEBUG):
         assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
         self.Optim1 = False
         self.Optim2 = False
-        self.Optim3 = False     # still not work
+        self.Optim3 = False
 
 class BrachaRB(BasicDolevRC):
     def __init__(self, settings: CommunitySettings, parameters=BrachaConfig()) -> None:
@@ -64,6 +64,7 @@ class BrachaRB(BasicDolevRC):
     
     def generate_malicious_message_id(self, msg: str) -> int:
         return self.node_id * 169 + (hash(msg) % 997)
+    
     def generate_phase_msg(self, og_msg, msg_type) :
         u_id, message, source_id, destination = og_msg.u_id, og_msg.message, self.node_id, []
         phase_msg_id = self.generate_message_id(message)
@@ -204,12 +205,12 @@ class BrachaRB(BasicDolevRC):
         try:
             u_id = payload.u_id # original id to identify the message we want to deliver
             self.is_BRBdelivered.update({u_id: True})
-            self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} BRB Delivered a message: {payload.u_id}.")
+            self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} BRB Delivered a message: {payload.u_id}, content: {payload.message}")
 
             self.write_bracha_msg_metric(u_id)
             
             for u_id, status in self.is_BRBdelivered.items():
-                self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {u_id}, Delivered: {status}, content: {payload.message}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"BRB Delivered Messages: Message ID: {u_id}, Delivered: {status}")
 
             self.msg_log.flush()
 

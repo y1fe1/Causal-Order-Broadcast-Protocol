@@ -227,5 +227,5 @@ class message_logger:
 
         self.file_handler.flush()
         self.output_msg_summary_to_csv(msg_summary_list)
-        self.output_metrics_to_csv(metrics_summary)
+        #self.output_metrics_to_csv(metrics_summary)
 
