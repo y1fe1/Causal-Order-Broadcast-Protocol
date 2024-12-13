@@ -18,7 +18,7 @@ from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LE
 from cs4545.implementation.dolev_rc_new import MessageType
 
 class BrachaConfig(MessageConfig):
-    def __init__(self, broadcasters={1:1, 2:1, 3:1}, malicious_nodes=[3,4], N=10, msg_level=logging.DEBUG):
+    def __init__(self, broadcasters={1:1, 2:1}, malicious_nodes=[3], N=10, msg_level=logging.DEBUG):
         assert(len(malicious_nodes) < N / 3)
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
         self.Optim1 = False
@@ -44,8 +44,8 @@ class BrachaRB(BasicDolevRC):
         self.Optim2 = parameters.Optim2
         self.Optim3 = parameters.Optim3
         
-        self.Optim3_ECHO = math.ceil((self.f + self.N + 1) / 2)
-        self.Optim3_READY = 2 * self.f + 1
+        self.Optim3_ECHO = math.ceil((self.f + self.N + 1) / 2) + self.f      # fixed
+        self.Optim3_READY = 3 * self.f + 1
         
         self.uid_cnt = 0
 
@@ -254,13 +254,27 @@ class BrachaRB(BasicDolevRC):
     
     def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
         if payload:
-            original_msg = payload.message
-            fake_message = original_msg
+            # original_msg = payload.message
+            # fake_message = original_msg
             
-            prefix = original_msg.split()[0] if original_msg else ""
-            if prefix == 'fake':             
-                self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] Recieved A fake msg with u_id {payload.u_id}")
-                return DolevMessage(payload.u_id, payload.message, payload.message_id, payload.source_id, payload.path, MessageType.READY.value)
+            # prefix = original_msg.split()[0] if original_msg else ""
+            # if prefix == 'fake':             
+            #     self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] Recieved A fake msg with u_id {payload.u_id}")
+            #     return DolevMessage(payload.u_id, payload.message, payload.message_id, payload.source_id, payload.path, MessageType.READY.value)
+            # else:
+            #     return payload
+            """
+             With a probability of 40% it will generate an fake ECHO or READY message randomly to replace it with.
+             In other cases, simply do nothing.
+            """
+
+            if random.randrange(100) <= 40:
+                new_type = random.choice([MessageType.ECHO, MessageType.READY])
+                new_message = 'faked: ' + payload.message
+                new_uid = self.get_uid_pred()  # No idea why this method works this way. Hope it's right.
+                self.msg_log.log(LOG_LEVEL.INFO, f"Malicious Node {self.node_id} Generated a fake {new_type}.")
+                new_message_id = self.generate_message_id(new_message)
+                return DolevMessage(new_uid, new_message, new_message_id, payload.source_id, payload.path, new_type)
             else:
                 return payload
 
