@@ -69,16 +69,18 @@ class BrachaRB(BasicDolevRC):
     
     def generate_phase_msg(self, og_msg, msg_type) :
         u_id, message, source_id, destination = og_msg.u_id, og_msg.message, self.node_id, []
+        vc = og_msg.vector_clock
+
         phase_msg_id = self.generate_message_id(message)
         if msg_type == MessageType.SEND:
             if self.Optim2:
-                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, [], msg_type.value, False)
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, False)
             else:
-                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, [], msg_type.value)
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value)
         elif msg_type == MessageType.ECHO and self.is_Optim3_ECHO():
-            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, [], msg_type.value)
+            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, vc, msg_type.value)
         elif msg_type == MessageType.READY and self.is_Optim3_READY():
-            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, [], msg_type.value)
+            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value)
         
     def get_uid_pred(self):
         if self.node_id == 1:

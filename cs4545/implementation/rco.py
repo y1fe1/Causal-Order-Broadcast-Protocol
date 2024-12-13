@@ -54,7 +54,8 @@ class RCO(BrachaRB):
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"The message from: {src}")
 
-        if True: #src != self.node_id: <- TODO: should be this, but why is source_id changed halfway?
+        if True: #src != self.node_id: <- TODO: should be this, but why is the source_id changed halfway?
+                                                       # Turns out we need another member in DolevMessage to keep the REAL source
             self.pending.append((src, payload))
 
             self.msg_log.log(LOG_LEVEL.DEBUG, f"My pending: {self.pending}")
