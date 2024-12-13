@@ -15,7 +15,7 @@ class RCO(BrachaRB):
     def __init__(self, settings: CommunitySettings, parameters=RCOConfig()):
         super().__init__(settings, parameters)
         self.vector_clock = [0 for _ in range(self.N)]
-        self.pending = set()
+        self.pending = []
 
     async def on_start(self):
         await super().on_start()
@@ -24,7 +24,7 @@ class RCO(BrachaRB):
         await super().on_start_as_starter()
 
     def compare_vector_lock(self, new_VC) -> bool:
-        self.msg_log(LOG_LEVEL.DEBUG, f"Comparing Vectors: {self.vector_clock} >= {new_VC} ?")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"Comparing Vectors: {self.vector_clock} >= {new_VC} ?")
         return all([self.vector_clock[i] >= new_VC[i] for i in range(self.N)])
 
     def generate_message(self) -> DolevMessage:
@@ -53,22 +53,25 @@ class RCO(BrachaRB):
         src = payload.source_id
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"The message from: {src}")
-        
-        if src != self.node_id:
-            self.pending.add((src, payload))
+
+        if True: #src != self.node_id: <- TODO: should be this, but why is source_id changed halfway?
+            self.pending.append((src, payload))
+
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"My pending: {self.pending}")
+
             self.deliver_pending()
 
     def deliver_pending(self):
         """ procedure deliver pending """
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} is entering deliver_pending")
-        to_keep = set()
+        to_keep = []
         for src, msg in self.pending:
-            if self.compare_vector_lock(msg.vector_lock):
+            if self.compare_vector_lock(msg.vector_clock):
                 self.trigger_RCO_delivery(msg)
                 self.vector_clock[src] += 1
             else:
-                to_keep.add((src, msg))
+                to_keep.append((src, msg))
         self.pending = to_keep
         
     def trigger_RCO_delivery(self, payload):
