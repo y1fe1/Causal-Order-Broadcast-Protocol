@@ -38,8 +38,11 @@ class DolevMessage:
     message_id: int
     source_id: int
     path: List[int]
+    vector_clock: List[int]
     phase: str = "None"
     is_delayed: bool = True
+    
+    
 
 class BasicDolevRC(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings, parameters: MessageConfig=MessageConfig()) -> None:
@@ -103,7 +106,7 @@ class BasicDolevRC(DistributedAlgorithm):
     def generate_message(self) -> DolevMessage:
         msg =  ''.join([random.choice(['Y', 'M', 'C', 'A']) for _ in range(4)])
         id = self.generate_message_id(msg)
-        return DolevMessage(msg, id, self.node_id, [])
+        return DolevMessage(msg, id, self.node_id, [], [])
     
     def generate_malicious_msg(self) -> DolevMessage:
 
@@ -114,7 +117,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.append_output(fake_msg_log)
         print(fake_msg_log)
         
-        return DolevMessage(msg,id,self.node_id,[])
+        return DolevMessage(msg,id,self.node_id,[], [])
     
     def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
 
@@ -128,7 +131,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.append_output(fake_msg_log)
             print(fake_msg_log)
 
-            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path)
+            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path, [])
 
     def execute_mal_process(self, msg) -> DolevMessage:
 
