@@ -99,6 +99,8 @@ class BrachaRB(BasicDolevRC):
                 return 4
             return 5
         
+        return hash(datetime.datetime.now()) % 997
+        
         
     async def on_start(self):
 
