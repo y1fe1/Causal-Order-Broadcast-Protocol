@@ -77,11 +77,11 @@ class BrachaRB(BasicDolevRC):
             if self.Optim2:
                 return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, False, author_id)
             else:
-                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, author_id)
+                return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, True, author_id)
         elif msg_type == MessageType.ECHO and self.is_Optim3_ECHO():
-            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, vc, msg_type.value, author_id)
+            return DolevMessage(u_id,message, phase_msg_id, source_id, destination, vc, msg_type.value, True, author_id)
         elif msg_type == MessageType.READY and self.is_Optim3_READY():
-            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, author_id)
+            return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, True, author_id)
         
     def get_uid_pred(self):
         if self.node_id == 1:

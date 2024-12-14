@@ -8,7 +8,7 @@ from cs4545.implementation.node_log import LOG_LEVEL
 from cs4545.implementation.bracha_rb import BrachaRB, BrachaConfig
 
 class RCOConfig(BrachaConfig):
-    def __init__(self, broadcasters={1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.DEBUG):
+    def __init__(self, broadcasters={1:1, 2:3}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.DEBUG):
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
 
 class RCO(BrachaRB):
@@ -34,7 +34,7 @@ class RCO(BrachaRB):
         msg_id = self.generate_message_id(msg)    # 调用父类实现
         author_id = self.node_id
         return DolevMessage(u_id, msg, msg_id, self.node_id, [],
-                            self.vector_clock, MessageType.BRACHA.value, author_id)
+                            self.vector_clock, MessageType.BRACHA.value, True, author_id)
 
     async def on_broadcast(self, message: DolevMessage):
         """ upon event < RCO, Broadcast | M > do """
