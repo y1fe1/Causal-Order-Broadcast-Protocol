@@ -41,6 +41,7 @@ class DolevMessage:
     vector_clock: List[int]
     phase: str = "None"
     is_delayed: bool = True
+    author_id: int = -1          # only used for RCO
     
     
 

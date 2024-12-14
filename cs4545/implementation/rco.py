@@ -32,8 +32,9 @@ class RCO(BrachaRB):
         "".join([random.choice(['TUD', 'NUQ', 'LOO', 'THU']) for _ in range(6)])
         u_id = self.get_uid_pred()
         msg_id = self.generate_message_id(msg)    # 调用父类实现
+        author_id = self.node_id
         return DolevMessage(u_id, msg, msg_id, self.node_id, [],
-                            self.vector_clock, MessageType.BRACHA.value)
+                            self.vector_clock, MessageType.BRACHA.value, author_id)
 
     async def on_broadcast(self, message: DolevMessage):
         """ upon event < RCO, Broadcast | M > do """
@@ -50,13 +51,12 @@ class RCO(BrachaRB):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} is Trying to trigger BRB Delivery: {payload.message}")
 
         super().trigger_Bracha_Delivery(payload)
-        src = payload.source_id
+        author = payload.author_id
 
-        self.msg_log.log(LOG_LEVEL.DEBUG, f"The message from: {src}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"The message from: {author}")
 
-        if True: #src != self.node_id: <- TODO: should be this, but why is the source_id changed halfway?
-                                                       # Turns out we need another member in DolevMessage to keep the REAL source
-            self.pending.append((src, payload))
+        if author != self.node_id: 
+            self.pending.append((author, payload))
 
             self.msg_log.log(LOG_LEVEL.DEBUG, f"My pending: {self.pending}")
 
@@ -67,12 +67,12 @@ class RCO(BrachaRB):
 
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} is entering deliver_pending")
         to_keep = []
-        for src, msg in self.pending:
+        for author, msg in self.pending:
             if self.compare_vector_lock(msg.vector_clock):
                 self.trigger_RCO_delivery(msg)
-                self.vector_clock[src] += 1
+                self.vector_clock[author] += 1
             else:
-                to_keep.append((src, msg))
+                to_keep.append((author, msg))
         self.pending = to_keep
         
     def trigger_RCO_delivery(self, payload):
