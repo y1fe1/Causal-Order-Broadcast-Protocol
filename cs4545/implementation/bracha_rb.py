@@ -29,7 +29,6 @@ class BrachaRB(BasicDolevRC):
     def __init__(self, settings: CommunitySettings, parameters=BrachaConfig()) -> None:
 
         super().__init__(settings, parameters)
-        print(self.msg_level, f"Bracha level: {self.msg_level}")
 
         # f should be < N/3
 
@@ -312,7 +311,7 @@ class BrachaRB(BasicDolevRC):
                 threshold = self.f + 1
                 if count >= threshold :
                     self.msg_log.log(LOG_LEVEL.DEBUG,f"OPT1 Triggered")
-                    self.trigger_send_echo(payload)
+                    await self.trigger_send_echo(payload)
                         
             elif msg_type == MessageType.READY:
                 # if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
@@ -320,7 +319,7 @@ class BrachaRB(BasicDolevRC):
                 #     self.set_ready_sent_true(uuid)
                 #     await self.broadcast_message(uuid, MessageType.READY, payload, True)
                 # el
-               self.trigger_send_echo(payload)
+               await self.trigger_send_echo(payload)
 
     def is_Optim3_ECHO(self) -> bool:
         if not self.Optim3:

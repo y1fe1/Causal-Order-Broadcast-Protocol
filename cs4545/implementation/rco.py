@@ -8,7 +8,7 @@ from cs4545.implementation.node_log import LOG_LEVEL
 from cs4545.implementation.bracha_rb import BrachaRB, BrachaConfig
 
 class RCOConfig(BrachaConfig):
-    def __init__(self, broadcasters={1:1, 2:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING):
+    def __init__(self, broadcasters={1:1, 2:1, 3:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING):
         super().__init__(broadcasters, malicious_nodes, N, msg_level)
 
 class RCO(BrachaRB):
@@ -48,12 +48,10 @@ class RCO(BrachaRB):
     def trigger_Bracha_Delivery(self, payload):
         """ upon event < RB, Deliver | M > do """
 
-        self.msg_log.log(self.msg_level, f"Node {self.node_id} is Trying to trigger BRB Delivery: {payload.message}")
-
         super().trigger_Bracha_Delivery(payload)
         author = payload.author_id
 
-        self.msg_log.log(self.msg_level, f"The message from: {author}")
+        self.msg_log.log(self.msg_level, f"Node {self.node_id} BRB Delivered: {payload.message} from {author}")
 
         if author != self.node_id: 
             self.pending.append((author, payload))
@@ -66,6 +64,7 @@ class RCO(BrachaRB):
         """ procedure deliver pending """
 
         self.msg_log.log(self.msg_level, f"Node {self.node_id} is entering deliver_pending")
+        
         to_keep = []
         for author, msg in self.pending:
             if self.compare_vector_lock(msg.vector_clock):
