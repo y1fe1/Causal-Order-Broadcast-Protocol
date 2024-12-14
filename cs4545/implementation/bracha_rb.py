@@ -29,6 +29,7 @@ class BrachaRB(BasicDolevRC):
     def __init__(self, settings: CommunitySettings, parameters=BrachaConfig()) -> None:
 
         super().__init__(settings, parameters)
+        print(self.msg_level, f"Bracha level: {self.msg_level}")
 
         # f should be < N/3
 
@@ -165,7 +166,7 @@ class BrachaRB(BasicDolevRC):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"Deliver_threshold: {delivered_threshold}, {len(self.ready_count.get(payload.u_id))}")
         if delivered_threshold:
             self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} trying to trigger bracha Delivery, but where am I going?")
-            await self.trigger_Bracha_Delivery(payload)
+            self.trigger_Bracha_Delivery(payload)
         
         await self.Optim1_handler(payload.u_id, payload, MessageType.ECHO)
 
@@ -229,7 +230,7 @@ class BrachaRB(BasicDolevRC):
         try:
             u_id = payload.u_id # original id to identify the message we want to deliver
             self.is_BRBdelivered.update({u_id: True})
-            self.msg_log.log(LOG_LEVEL.INFO, f"Node {self.node_id} BRB Delivered a message: {payload.u_id}, content: {payload.message}")
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"Node {self.node_id} BRB Delivered a message: {payload.u_id}, content: {payload.message}")
 
             self.write_bracha_msg_metric(u_id)
             
@@ -254,7 +255,7 @@ class BrachaRB(BasicDolevRC):
         msg_id = self.generate_message_id(msg)
 
         mal_msg = DolevMessage(u_id, msg, msg_id, self.node_id, [], [], MessageType.BRACHA.value)
-        self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] generated malicious msg {mal_msg} to send")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"[Malicious Node {self.node_id}] generated malicious msg {mal_msg} to send")
         return mal_msg
     
     def mal_modify_msg(self, payload: DolevMessage) ->  DolevMessage:
@@ -264,7 +265,7 @@ class BrachaRB(BasicDolevRC):
             
             # prefix = original_msg.split()[0] if original_msg else ""
             # if prefix == 'fake':             
-            #     self.msg_log.log(LOG_LEVEL.INFO, f"[Malicious Node {self.node_id}] Recieved A fake msg with u_id {payload.u_id}")
+            #     self.msg_log.log(LOG_LEVEL.DEBUG, f"[Malicious Node {self.node_id}] Recieved A fake msg with u_id {payload.u_id}")
             #     return DolevMessage(payload.u_id, payload.message, payload.message_id, payload.source_id, payload.path, MessageType.READY.value)
             # else:
             #     return payload
@@ -277,7 +278,7 @@ class BrachaRB(BasicDolevRC):
                 new_type = random.choice([MessageType.ECHO, MessageType.READY])
                 new_message = 'faked: ' + payload.message
                 new_uid = self.get_uid_pred()  # No idea why this method works this way. Hope it's right.
-                self.msg_log.log(LOG_LEVEL.INFO, f"Malicious Node {self.node_id} Generated a fake {new_type}.")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"Malicious Node {self.node_id} Generated a fake {new_type}.")
                 new_message_id = self.generate_message_id(new_message)
                 return DolevMessage(new_uid, new_message, new_message_id, payload.source_id, payload.path, [], new_type)
             else:

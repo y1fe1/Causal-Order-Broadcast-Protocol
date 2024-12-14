@@ -91,7 +91,7 @@ class DistributedAlgorithm(Community):
                 / f"{self.algortihm_output_file.stem}-{node_id}{self.algortihm_output_file.suffix}"
         )
 
-        self.msg_level = LOG_LEVEL.DEBUG
+        self.msg_level = LOG_LEVEL.INFO
         self.msg_log = message_logger(self.node_id,self.algortihm_output_file,OutputMetrics(),self.msg_level) #default constructor to make python happy
 
         self.stat_file = Path(stat_file)

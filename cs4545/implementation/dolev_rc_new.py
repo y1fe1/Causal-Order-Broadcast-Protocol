@@ -161,7 +161,7 @@ class BasicDolevRC(DistributedAlgorithm):
         self.msg_log.logger.setLevel(self.msg_level.value)
 
         self.msg_log.update_log_path(self.gen_output_file_path())
-        self.msg_log.log(LOG_LEVEL.INFO, f"Message Log Init Succesfully, with Node {self.node_id}, Output_Path {self.algortihm_output_file}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"Message Log Init Succesfully, with Node {self.node_id}, Output_Path {self.algortihm_output_file}")
 
     async def on_start(self):
 
@@ -169,7 +169,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
         if self.node_id in self.malicious_nodes:
             self.is_malicious = True
-            self.msg_log.log(LOG_LEVEL.INFO, f"Hi I am malicious {self.node_id}")
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"Hi I am malicious {self.node_id}")
 
         all_ready = False
         # print(f"[Node {self.node_id}] Starting algorithm with peers {[x.address for x in self.get_peers()]} and {self.nodes}")
@@ -188,13 +188,13 @@ class BasicDolevRC(DistributedAlgorithm):
                 await asyncio.sleep(2) # this is enough to make the logic stack look happy
             
             else:
-                self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is ready")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] is ready")
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] ready, states={self.node_states}")
                 self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] peers: {[x.address for x in self.get_peers()]}")
 
         if self.node_id in self.starter_nodes:
             for cnt in range(self.starter_nodes[self.node_id]): # allow multiple messages from one starter
-                self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting. Round: {cnt}")
+                self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] is starting. Round: {cnt}")
                 await self.on_start_as_starter()
 
     async def on_start_as_starter(self):
@@ -202,14 +202,14 @@ class BasicDolevRC(DistributedAlgorithm):
         self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] entering on_start_as_starter")
 
         message = self.generate_message()
-        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] Generated message: {message}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] Generated message: {message}")
         await self.on_broadcast(message)
 
 
     async def on_broadcast(self, message: DolevMessage) -> None:
         # Assuming everything has been set up well for this node (delivered, paths, ...)
 
-        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] is starting Dolev's protocol")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] is starting Dolev's protocol")
 
         peers = self.get_peers()
 
@@ -240,7 +240,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.ERROR, f"Error in on_broadcast: {e}")
             raise e
         
-        self.msg_log.log(LOG_LEVEL.INFO, f"[Node {self.node_id}] delivered self-broadcasted message {message.message_id}")
+        self.msg_log.log(LOG_LEVEL.DEBUG, f"[Node {self.node_id}] delivered self-broadcasted message {message.message_id}")
         await self.trigger_delivery(message)
 
     @message_wrapper(DolevMessage)
@@ -284,7 +284,7 @@ class BasicDolevRC(DistributedAlgorithm):
             new_path = msg_path + [sender_id]
 
             recieved_log = f"[Node {self.node_id}] Got message: {payload.phase} - {new_payload.message_id} from node: {sender_id} with path {new_path}"
-            self.msg_log.log(LOG_LEVEL.INFO,recieved_log)
+            self.msg_log.log(LOG_LEVEL.DEBUG,recieved_log)
 
             #increment msg log stat
 
@@ -318,7 +318,7 @@ class BasicDolevRC(DistributedAlgorithm):
             if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 disjoint_path_find_log = f"[Node {self.node_id}] Enough node-disjoint paths found for {message_id}, message will be delivered"
-                self.msg_log.log(LOG_LEVEL.INFO, disjoint_path_find_log)
+                self.msg_log.log(LOG_LEVEL.DEBUG, disjoint_path_find_log)
 
                 await self.trigger_delivery(new_payload)
 
@@ -348,7 +348,7 @@ class BasicDolevRC(DistributedAlgorithm):
                 if payload.is_delayed and (neighbor_id not in node_to_skip):
 
                     msg_log = f"[Node {self.node_id}] Sent message to node {neighbor_id} with path {new_path} : {payload.message}"
-                    self.msg_log.log(LOG_LEVEL.INFO, msg_log)
+                    self.msg_log.log(LOG_LEVEL.DEBUG, msg_log)
 
                     payload.message = new_payload.message
                     payload.message_id = new_payload.message_id
