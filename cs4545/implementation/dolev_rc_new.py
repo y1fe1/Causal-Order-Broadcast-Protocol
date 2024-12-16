@@ -409,7 +409,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
                     path_log = f"[Node {self.node_id}] Terminate, disjoint paths: {disjoint_paths}" 
                     self.append_output(path_log)
-                    print(path_log)
+                    #print(path_log)
                     return True
         return False
 

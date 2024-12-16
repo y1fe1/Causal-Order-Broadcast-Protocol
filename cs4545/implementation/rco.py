@@ -9,7 +9,7 @@ from cs4545.implementation.node_log import LOG_LEVEL
 from cs4545.implementation.bracha_rb import BrachaRB, BrachaConfig
 
 class RCOConfig(BrachaConfig):
-    def __init__(self, broadcasters={0:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = [8,9,6,4]):
+    def __init__(self, broadcasters={0:1, 1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = {0:[8,9,6,4], 1:[2,3,5]}):
         """
         Previously, we use broadcasters = {1:2, 2:1, ...} to launch concurrent broadcasts.
         From now on, the messages should be made causally related.
@@ -41,7 +41,7 @@ class RCO(BrachaRB):
         "".join([random.choice(['TUD', 'NUQ', 'LOO', 'THU']) for _ in range(6)])
 
         if suffix == "None":
-            suffix = "".join([str(id) for id in self.causal_broadcast])
+            suffix = "".join([str(id) for id in self.causal_broadcast[self.node_id]])
             suffix = suffix[::-1]
         msg = msg + "_" + suffix
 
