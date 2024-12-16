@@ -84,22 +84,7 @@ class BrachaRB(BasicDolevRC):
             return DolevMessage(u_id, message, phase_msg_id, source_id, destination, vc, msg_type.value, True, author_id)
         
     def get_uid_pred(self):
-        if self.node_id == 1:
-            if self.uid_cnt == 0:
-                self.uid_cnt += 1
-                return 1
-            return 2
-        
-        if self.node_id == 2:
-            return 3
-        
-        if self.node_id == 3:
-            if self.uid_cnt == 0:
-                self.uid_cnt += 1
-                return 4
-            return 5
-        
-        return hash(datetime.datetime.now()) % 997
+        return hash(datetime.datetime.now()) % 9997
         
         
     async def on_start(self):

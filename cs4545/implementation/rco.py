@@ -1,6 +1,7 @@
 import random
 import datetime
 import asyncio
+import time
 
 from ipv8.community import CommunitySettings
 
@@ -62,6 +63,9 @@ class RCO(BrachaRB):
 
     def trigger_Bracha_Delivery(self, payload):
         """ upon event < RB, Deliver | M > do """
+
+        time.sleep(random.choice([0, 2]))
+        # apply random delay
 
         super().trigger_Bracha_Delivery(payload)
         author = payload.author_id
