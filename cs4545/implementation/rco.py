@@ -10,7 +10,7 @@ from cs4545.implementation.node_log import LOG_LEVEL
 from cs4545.implementation.bracha_rb import BrachaRB, BrachaConfig
 
 class RCOConfig(BrachaConfig):
-    def __init__(self, broadcasters={0:1, 1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = {0:[8,9,6,4], 1:[2,3,5]}):
+    def __init__(self, broadcasters={0:1, 1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = {0: [8,9,6,4], 1: [2,3,5]}):
         """
         Previously, we use broadcasters = {1:2, 2:1, ...} to launch concurrent broadcasts.
         From now on, the messages should be made causally related.
@@ -27,6 +27,9 @@ class RCO(BrachaRB):
         self.vector_clock = [0 for _ in range(self.N)]
         self.pending = []
 
+    def gen_output_file_path(self, test_name: str = "RCO_TEST"):
+        return super().gen_output_file_path(test_name)
+    
     async def on_start(self):
         await super().on_start()
 
@@ -37,20 +40,21 @@ class RCO(BrachaRB):
         self.msg_log.log(self.msg_level, f"Comparing Vectors: {self.vector_clock} >= {new_VC} ?")
         return all([self.vector_clock[i] >= new_VC[i] for i in range(self.N)])
 
-    def generate_message(self, suffix="None") -> DolevMessage:
+    def generate_message(self, old_queue = None) -> DolevMessage:
         msg = f"msg_{self.message_broadcast_cnt+1}th_" + \
         "".join([random.choice(['TUD', 'NUQ', 'LOO', 'THU']) for _ in range(6)])
 
-        if suffix == "None":
-            suffix = "".join([str(id) for id in self.causal_broadcast[self.node_id]])
-            suffix = suffix[::-1]
-        msg = msg + "_" + suffix
+        if old_queue is None:
+            queue = self.causal_broadcast[self.node_id]
+        else:
+            old_queue.pop(0)
+            queue = old_queue.copy()
 
         u_id = self.get_uid_pred()
         msg_id = self.generate_message_id(msg)
         author_id = self.node_id
         return DolevMessage(u_id, msg, msg_id, self.node_id, [],
-                            self.vector_clock, MessageType.BRACHA.value, True, author_id)
+                            self.vector_clock, queue, MessageType.BRACHA.value, True, author_id)
 
     async def on_broadcast(self, message: DolevMessage):
         """ upon event < RCO, Broadcast | M > do """
@@ -97,16 +101,6 @@ class RCO(BrachaRB):
             self.pending = to_keep
             if not flag:
                 break
-    
-    def get_next_broadcast(self, payload: DolevMessage):
-        """ get the next broadcaster and the next message suffix"""
-        msg = payload.message
-        next_id, suffix = -1, ""
-        if msg[-1].isdigit():
-            next_id = int(msg[-1])
-            suffix = msg.split('_')[-1]
-            suffix = suffix[:-1]
-        return next_id, suffix
         
     def trigger_RCO_delivery(self, payload: DolevMessage):
         """ upon event < RCO, Deliver | M > do """
@@ -115,8 +109,12 @@ class RCO(BrachaRB):
         author = payload.author_id
         self.msg_log.log(self.msg_level, f"Node {self.node_id} RCO Delivered a message:<{payload.message}>. Time: {delivered_time}. Author: {author}.")
 
-        next_id, suffix = self.get_next_broadcast(payload)
-        if next_id == self.node_id:
-            new_payload = self.generate_message(suffix=suffix)
-            self.msg_log.log(self.msg_level, f"Node {self.node_id} is the next broadcaster for message: <{new_payload.message}>. Current message: <{payload.message}>")
-            asyncio.create_task(self.on_broadcast(new_payload))
+        queue = payload.causal_order_queue
+        self.msg_log.log(self.msg_level,f"{queue}, {type(queue)}")
+
+        if queue:
+            queue_top = queue[0]
+            if queue_top == self.node_id:
+                new_payload = self.generate_message(queue)
+                self.msg_log.log(self.msg_level, f"Node {self.node_id} is the next broadcaster for message: <{new_payload.message}>. Current message: <{payload.message}>")
+                asyncio.create_task(self.on_broadcast(new_payload))

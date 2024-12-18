@@ -5,7 +5,7 @@ import os
 import random
 
 from datetime import datetime
-from typing import Dict,List, Optional, Any
+from typing import Dict,List,Optional, Any
 
 from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
@@ -39,9 +39,11 @@ class DolevMessage:
     source_id: int
     path: List[int]
     vector_clock: List[int]
+    causal_order_queue: List[int]
     phase: str = "None"
     is_delayed: bool = True
     author_id: int = -1          # only used for RCO
+
     
     
 
