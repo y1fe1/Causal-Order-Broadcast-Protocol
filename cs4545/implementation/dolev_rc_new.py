@@ -44,6 +44,26 @@ class DolevMessage:
     is_delayed: bool = True
     author_id: int = -1          # only used for RCO
 
+    def __hash__(self):
+        return hash((
+            self.u_id, self.message, self.message_id, self.source_id, tuple(self.path),
+            tuple(self.vector_clock), tuple(self.causal_order_queue), self.phase, self.is_delayed, self.author_id
+        ))
+
+    def __eq__(self, other):
+        if not isinstance(other, DolevMessage):
+            return False
+        return (self.u_id == other.u_id and
+                self.message == other.message and
+                self.message_id == other.message_id and
+                self.source_id == other.source_id and
+                self.path == other.path and
+                self.vector_clock == other.vector_clock and
+                self.causal_order_queue == other.causal_order_queue and
+                self.phase == other.phase and
+                self.is_delayed == other.is_delayed and
+                self.author_id == other.author_id)
+
     
     
 

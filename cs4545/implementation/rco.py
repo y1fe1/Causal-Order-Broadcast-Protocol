@@ -25,7 +25,7 @@ class RCO(BrachaRB):
         super().__init__(settings, parameters)
         self.causal_broadcast = parameters.causal_broadcast
         self.vector_clock = [0 for _ in range(self.N)]
-        self.pending = []
+        self.pending: set[tuple[int, DolevMessage]] = set()
 
     def gen_output_file_path(self, test_name: str = "RCO_TEST"):
         return super().gen_output_file_path(test_name)
@@ -78,7 +78,7 @@ class RCO(BrachaRB):
         self.msg_log.log(self.msg_level, f"Node {self.node_id} BRB Delivered: {payload.message} from {author}")
 
         if author != self.node_id: 
-            self.pending.append((author, payload))
+            self.pending.add((author, payload))
 
             self.msg_log.log(self.msg_level, f"My pending: {self.pending}")
 
@@ -89,16 +89,19 @@ class RCO(BrachaRB):
 
         self.msg_log.log(self.msg_level, f"Node {self.node_id} is entering deliver_pending")
 
-        to_keep = []
         while True:
+            to_keep = set()
             flag = False
             for author, msg in self.pending:
                 if self.compare_vector_lock(msg.vector_clock):
                     self.trigger_RCO_delivery(msg)
                     self.vector_clock[author] += 1
+
+                    self.msg_log.log(self.msg_level, f"VC[{author}] increased by 1. Current: {self.vector_clock}")
+
                     flag = True
                 else:
-                    to_keep.append((author, msg))
+                    to_keep.add((author, msg))
             self.pending = to_keep
             if not flag:
                 break
