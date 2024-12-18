@@ -37,8 +37,9 @@ class RCO(BrachaRB):
         await super().on_start_as_starter()
 
     def compare_vector_lock(self, new_VC) -> bool:
-        self.msg_log.log(self.msg_level, f"Comparing Vectors: {self.vector_clock} >= {new_VC} ?")
-        return all([self.vector_clock[i] >= new_VC[i] for i in range(self.N)])
+        vec_compare_result = all(v >= nv for v, nv in zip(self.vector_clock, new_VC))
+        self.msg_log.log(self.msg_level, f"Comparing Vectors: {self.vector_clock} >= {new_VC}, {vec_compare_result}")
+        return vec_compare_result
 
     def generate_message(self, old_queue = None) -> DolevMessage:
         msg = f"msg_{self.message_broadcast_cnt+1}th_" + \
