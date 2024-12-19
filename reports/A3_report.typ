@@ -1,7 +1,7 @@
 #import "@preview/modern-technique-report:0.1.0": *
 
 #show: modern-technique-report.with(
-  title: [Assignment 3 Lab Report:\ Reliable broadcast : Bracha's Protocols and Optimizations],
+  title: [Assignment 3 Lab Report:\ RCO : Causal-Order Broadcast],
   subtitle: [
     
   ],
@@ -73,7 +73,9 @@ In this experiment, the broadcaster will initiates a process by broadcasting a m
 \
 == Latency and message complexity for one RCO-Broadcast Operation \
 
-In this metric, the experiment was conducted on a 9-connected graph, with 10 to 20 nodes, and 2 distinct messages broadcasting across the network. 
+In this metric, the experiment was conducted on a 8-connected graph, with 10 to 18 nodes, and 2 distinct messages broadcasting across the network. 
+
+#image("img/latency_and_complexity.png")
 
 
 #pagebreak()
@@ -115,7 +117,9 @@ In this metric, the experiment was conducted on a 9-connected graph, with 10 to 
   inset: 1cm,
   [
     #text(14pt)[
-        In conclusion......
+        In conclusion, the experiments show that RCO Protocols can be used to achieve causal-order broadcast. With the increase of Node numbers, the latency and message complexity of the RCO Protocols also increase.
+        
+        Besides, the RCO Protocols can be disrupted by Byzantine Nodes in several ways, such as message dropping, incorrect vector clock manipulation, and message delay. These disruptions can lead to incorrect delivery order at correct processes, and increased latency across the network.
       ]
   ]
 )
