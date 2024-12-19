@@ -2,6 +2,7 @@ import datetime
 import logging
 import random
 import math
+import traceback
 
 from typing import Dict,List,Tuple
 from enum import Enum
@@ -298,24 +299,33 @@ class BrachaRB(BasicDolevRC):
     """
     
     async def Optim1_handler(self, uuid: str, payload: DolevMessage, msg_type: MessageType):
-        if self.Optim1:
-            count = 0
-            threshold = 0
-            
-            if msg_type == MessageType.ECHO:
-                count = len(list(self.echo_count.get(uuid)))
-                threshold = self.f + 1
-                if count >= threshold :
-                    self.msg_log.log(LOG_LEVEL.DEBUG,f"OPT1 Triggered")
+
+        try:
+            if self.Optim1:
+                count = 0
+                threshold = 0
+                
+                if msg_type == MessageType.ECHO:
+                    count = len(list(self.echo_count.get(uuid,[])))
+                    threshold = self.f + 1
+                    if count >= threshold :
+                        self.msg_log.log(LOG_LEVEL.DEBUG,f"OPT1 Triggered")
+                        await self.trigger_send_echo(payload)
+                            
+                elif msg_type == MessageType.READY:
+                    # if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
+                    #     self.set_echo_sent_true(uuid)
+                    #     self.set_ready_sent_true(uuid)
+                    #     await self.broadcast_message(uuid, MessageType.READY, payload, True)
+                    # el
                     await self.trigger_send_echo(payload)
-                        
-            elif msg_type == MessageType.READY:
-                # if ():# TODO: 同时满足生成 ECHO 和 READY 消息的条件
-                #     self.set_echo_sent_true(uuid)
-                #     self.set_ready_sent_true(uuid)
-                #     await self.broadcast_message(uuid, MessageType.READY, payload, True)
-                # el
-               await self.trigger_send_echo(payload)
+                
+        except Exception as e:
+            error_stack_trace = traceback.format_exc()
+            error_log = f"Error occurred:{error_stack_trace}"
+            self.msg_log.log(LOG_LEVEL.ERROR, error_log)
+            raise RuntimeError(error_log) from e
+
 
     def is_Optim3_ECHO(self) -> bool:
         if not self.Optim3:
