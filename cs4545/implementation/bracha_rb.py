@@ -3,7 +3,7 @@ import logging
 import random
 import math
 
-from typing import Dict,List
+from typing import Dict,List,Tuple
 from enum import Enum
 
 from ipv8.community import CommunitySettings
@@ -48,6 +48,9 @@ class BrachaRB(BasicDolevRC):
         self.Optim3_READY = 3 * self.f + 1
         
         self.uid_cnt = 0
+
+        self.gen_mal_threshold = 2 # use this so mal node doesnt fill the network with garbage msg
+        self.gen_mal_msg_cnt = 0
 
     def gen_output_file_path(self, test_name: str = "Bracha_Test_mal"):
         return super().gen_output_file_path(test_name)
@@ -268,17 +271,22 @@ class BrachaRB(BasicDolevRC):
              In other cases, simply do nothing.
             """
 
-            if random.randrange(100) <= 40:
+            if random.randrange(100) < 40 and self.gen_mal_msg_cnt < self.gen_mal_threshold:
                 new_type = random.choice([MessageType.ECHO, MessageType.READY])
                 new_message = 'faked: ' + payload.message
-                new_uid = self.get_uid_pred()  # No idea why this method works this way. Hope it's right.
-                self.msg_log.log(LOG_LEVEL.INFO, f"Malicious Node {self.node_id} Generated a fake {new_type}.")
+                new_uid = hash(random.shuffle(list(new_message)))  #This uid should be randomized since it doesnt even matter
                 new_message_id = self.generate_message_id(new_message)
-                return DolevMessage(new_uid, new_message, new_message_id, payload.source_id, payload.path, new_type)
-            else:
-                return payload
+                fake_msg = DolevMessage(new_uid, new_message, new_message_id, self.node_id, [], new_type)
 
-    def execute_mal_process(self, msg) -> DolevMessage:
+                self.gen_mal_msg_cnt+=1
+
+                self.msg_log.log(LOG_LEVEL.INFO, f"Malicious Node {self.node_id} Generated a fake {new_type.value} Message.")
+                self.msg_log.log(LOG_LEVEL.DEBUG, fake_msg)
+                return fake_msg,True
+            else:
+                return payload,False
+
+    def execute_mal_process(self, msg) -> Tuple[DolevMessage, bool]:
         (behaviour, args) = {
             "generate_fake_msg" : (self.generate_malicious_msg, ()),
             "modify_msg_id" : (self.mal_modify_msg, (msg,)),

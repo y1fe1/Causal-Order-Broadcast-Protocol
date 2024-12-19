@@ -128,7 +128,7 @@ class BasicDolevRC(DistributedAlgorithm):
             self.append_output(fake_msg_log)
             print(fake_msg_log)
 
-            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path)
+            return DolevMessage(fake_message, fake_id, payload.source_id, payload.path), True
 
     def execute_mal_process(self, msg) -> DolevMessage:
 
@@ -246,8 +246,15 @@ class BasicDolevRC(DistributedAlgorithm):
         sender_id = self.node_id_from_peer(peer)
         source_id, message_id, msg_path = payload.source_id,payload.message_id,payload.path
 
+        self.msg_log.log(LOG_LEVEL.DEBUG, payload)
+
         # if the node is malicious, it will modify the msg
-        new_payload = self.generate_relay_message(payload)
+        (new_payload, is_msg_modified) = self.generate_relay_message(payload)
+
+        if is_msg_modified :
+            sender_id = None
+            source_id, message_id, msg_path = new_payload.source_id,new_payload.message_id,new_payload.path
+            
 
         self.msg_log.get_deliver_info_msg(new_payload.u_id).byte_sent += len(new_payload.message)
         self.msg_log.get_deliver_info_msg(new_payload.message_id).byte_sent += len(new_payload.message)
@@ -277,7 +284,10 @@ class BasicDolevRC(DistributedAlgorithm):
             self.msg_log.log(LOG_LEVEL.DEBUG, MD3_log)
 
         try:
-            new_path = msg_path + [sender_id]
+            if sender_id is not None:
+                new_path = msg_path + [sender_id]
+            else:
+                new_path = msg_path
 
             recieved_log = f"[Node {self.node_id}] Got message: {payload.phase} - {new_payload.message_id} from node: {sender_id} with path {new_path}"
             self.msg_log.log(LOG_LEVEL.INFO,recieved_log)
@@ -298,7 +308,6 @@ class BasicDolevRC(DistributedAlgorithm):
             
             #MD1 If a process preceives a content directly from the source s, then p directly delivers it.
             if self.MD1 and not self.is_malicious and not self.is_delivered.get(message_id) and sender_id == source_id:
-
                 MD1_log = f"MD1: [Node {self.node_id}] is a direct neighbour of Sender {sender_id} for the message {message_id}, it will be delivered"
                 self.msg_log.log(LOG_LEVEL.DEBUG, MD1_log)
 
@@ -310,8 +319,9 @@ class BasicDolevRC(DistributedAlgorithm):
 
             # if not self.is_malicious and not self.is_delivered.get(message_id) and self.new_find_disjoint_paths_ok(message_id):
 
-            
+            self.msg_log.log(LOG_LEVEL.DEBUG, f"{self.is_malicious} and not {self.is_delivered.get(message_id)} and {self.find_disjoint_paths_ok(message_id)}:")
             if not self.is_malicious and not self.is_delivered.get(message_id) and self.find_disjoint_paths_ok(message_id):
+
                 # print(f"Node {self.node_id} has enough node-disjoint paths, delivering message: {payload.message}")
                 disjoint_path_find_log = f"[Node {self.node_id}] Enough node-disjoint paths found for {message_id}, message will be delivered"
                 self.msg_log.log(LOG_LEVEL.INFO, disjoint_path_find_log)
@@ -348,6 +358,7 @@ class BasicDolevRC(DistributedAlgorithm):
 
                     payload.message = new_payload.message
                     payload.message_id = new_payload.message_id
+                    payload.source_id = new_payload.source_id # since we dont care about dolev byzantine node, lets do this for now
                     payload.path = new_path
 
                     self.ez_send(neighbor, payload)
@@ -360,7 +371,7 @@ class BasicDolevRC(DistributedAlgorithm):
         if self.is_malicious and (self.node_id not in self.starter_nodes):
             return self.execute_mal_process(payload)
         else: 
-            return payload
+            return payload, False
             
     async def trigger_delivery(self, message: DolevMessage):
         try:
