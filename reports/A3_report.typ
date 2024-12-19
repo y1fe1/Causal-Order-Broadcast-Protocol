@@ -64,6 +64,7 @@
 
 #set align(left)
 
+In this experiment, the broadcaster will initiates a process by broadcasting a message, which triggers a chain reaction: upon a selected nodes from their predecessors, they will genereate a new message and broadcast it to the Network, simulating a causal-order event chain like $m_1 -> m_2.... ->m_n$
 
 #pagebreak()
 
@@ -72,7 +73,7 @@
 \
 == Latency and message complexity for one RCO-Broadcast Operation \
 
-In this metric, the experiment was conducted on a 6-connected graph, with 10 nodes, and 5 distinct messages broadcasting across the network. The results show a overall decreasing trend in average latency and Message Complexity with the Echo amplification enabled
+In this metric, the experiment was conducted on a 9-connected graph, with 10 to 20 nodes, and 2 distinct messages broadcasting across the network. 
 
 
 #pagebreak()
