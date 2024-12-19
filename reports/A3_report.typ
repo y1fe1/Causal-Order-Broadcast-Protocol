@@ -28,11 +28,9 @@
   inset: 1cm,
   [
     #text(14pt)[
-        The purpose of this lab assignment is to implement Bracha's Reliable Broadcast Algorithm and three optimizations that improve the performance of the algorithm. Bracha's algorithm is based on the fully-connected network model, however in practice, the network is not fully connected in most cases. 
-
-        The goal is to implement the Bracha's algorithm based on Dolev's algorithm, which guarantees a (virtual) fully connected network. The algorithm is Byzantine fault-tolerant.
+        The purpose of this lab assignment is to implement a causal-order Byzantine broadcast Algorithm that is desgined to work in a complete netwrok with up to $f$ faulty node.
         
-        The optimizations are designed to improve the performance of the Bracha's algorithm in terms of message complexity and latency.
+        The Report also examines possible Malicisous Action a Byzantine Node can perform and its impact on the whole network.
       ]
   ]
 )
@@ -72,7 +70,7 @@
 
 = Result 
 \
-== Latency and message complexity without or with the 'Echo amplifications' optimization. \
+== Latency and message complexity for one RCO-Broadcast Operation \
 
 In this metric, the experiment was conducted on a 6-connected graph, with 10 nodes, and 5 distinct messages broadcasting across the network. The results show a overall decreasing trend in average latency and Message Complexity with the Echo amplification enabled
 
@@ -116,9 +114,7 @@ In this metric, the experiment was conducted on a 6-connected graph, with 10 nod
   inset: 1cm,
   [
     #text(14pt)[
-        In conclusion, the experiments demonstrate distinct trends based on the varying metrics of the Bracha's protocol. With the three optimizations, the performance of the network all shows increasing trend in term of better Latency and Message Complexity. We see that Optimziation 3 has the most significant effect in reducing message communcation across the network. And optimization 1 and 2 has a slightly  less performance as the network is relatively small,  which wrong-order asynchronous message delivered are not that common as the nodes recieved SEND Message in time.
-
-        In conclusion, Bracha's Reliable broadcast algorithm can make sure the message be delivered correctly, and resist Byzantine behaviours.
+        In conclusion......
       ]
   ]
 )
