@@ -29,6 +29,10 @@ This top layer ensures:
 - **RCO-Integrity:** If a correct process RCO-delivers a message `m` with sender `p_i`, then `m` was previously broadcast by `p_i`.
 - **RCO-Agreement:** If some correct process RCO-delivers a message `m`, then every correct process eventually RCO-delivers `m`.
 - **RCO-Causal Order:** No correct process `p_i` RCO-delivers a message `m_2` unless it has already delivered every message `m_1` such that `m_1 → m_2`.
+- 
+## Contributors
+- [halantown](https://github.com/halantown)
+- [for9interesting](https://github.com/for9interesting)
 
 ## References
 The implementation and design are based on the following seminal works in distributed systems and Byzantine Fault Tolerance:
