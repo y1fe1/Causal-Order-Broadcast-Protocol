@@ -45,3 +45,30 @@ The implementation and design are based on the following seminal works in distri
 - S. Bonomi, J. Decouchant, G. Farina, V. Rahli, and S. Tixeuil, “Practical Byzantine reliable broadcast on partially connected networks,” in *2021 IEEE 41st International Conference on Distributed Computing Systems (ICDCS)*, pp. 506–516, IEEE, 2021.
 - D. Dolev, “Unanimity in an unknown and unreliable environment,” in FOCS, IEEE, 1981.
 - S. Bonomi, G. Farina, and S. Tixeuil, “Multi-hop Byzantine reliable broadcast with honest dealer made practical,” *Journal of the Brazilian Computer Society*, vol. 25, pp. 1–23, 2019.
+
+## Credits
+This project is built upon the P2P network framework developed by Bart Cox under the MIT License :
+
+```
+MIT License
+
+Copyright (c) 2024 Bart Cox
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
