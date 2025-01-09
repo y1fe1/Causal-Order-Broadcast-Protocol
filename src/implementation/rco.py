@@ -5,9 +5,9 @@ import time
 
 from ipv8.community import CommunitySettings
 
-from cs4545.implementation.dolev_rc_new import DolevMessage, MessageType
-from cs4545.implementation.node_log import LOG_LEVEL
-from cs4545.implementation.bracha_rb import BrachaRB, BrachaConfig
+from src.implementation.dolev_rc_new import DolevMessage, MessageType
+from src.implementation.node_log import LOG_LEVEL
+from src.implementation.bracha_rb import BrachaRB, BrachaConfig
 
 class RCOConfig(BrachaConfig):
     def __init__(self, broadcasters={0:1, 1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = {0: [8,8,9,6,4], 1: [2,3,5]}):

@@ -1,5 +1,5 @@
 from typing import List
-from cs4545.system.da_types import *
+from src.system.da_types import *
 
 
 @dataclass(msg_id=3)  # The value 1 identifies this message and must be unique per community.

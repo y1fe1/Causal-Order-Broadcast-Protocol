@@ -12,11 +12,11 @@ from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 from hashlib import sha256
 
-from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
-from cs4545.implementation.dolev_rc_new import BasicDolevRC, MessageConfig, DolevMessage
-from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
+from src.system.da_types import DistributedAlgorithm, message_wrapper
+from src.implementation.dolev_rc_new import BasicDolevRC, MessageConfig, DolevMessage
+from src.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
 
-from cs4545.implementation.dolev_rc_new import MessageType
+from src.implementation.dolev_rc_new import MessageType
 
 class BrachaConfig(MessageConfig):
     def __init__(self, broadcasters={1:1, 2:1}, malicious_nodes=[3], N=10, msg_level=logging.DEBUG):

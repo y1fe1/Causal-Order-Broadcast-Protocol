@@ -11,8 +11,8 @@ from ipv8.community import CommunitySettings
 from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 
-from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
-from cs4545.system.da_types import DistributedAlgorithm, message_wrapper
+from src.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
+from src.system.da_types import DistributedAlgorithm, message_wrapper
 from ..system.da_types import ConnectionMessage
 
 class MessageConfig:

@@ -17,9 +17,9 @@ from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.messaging.serialization import Payload
 from ipv8.types import Peer, LazyWrappedHandler, MessageHandlerFunction
 
-from cs4545.system.msg_history import MessageHistory
+from src.system.msg_history import MessageHistory
 
-from cs4545.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
+from src.implementation.node_log import message_logger, OutputMetrics, LOG_LEVEL
 
 def sizeof(obj):
     size = sys.getsizeof(obj)
