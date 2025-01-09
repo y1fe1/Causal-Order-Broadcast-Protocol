@@ -10,7 +10,7 @@ from cs4545.implementation.node_log import LOG_LEVEL
 from cs4545.implementation.bracha_rb import BrachaRB, BrachaConfig
 
 class RCOConfig(BrachaConfig):
-    def __init__(self, broadcasters={0:1, 1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = {0: [8,9,6,4], 1: [2,3,5]}):
+    def __init__(self, broadcasters={0:1, 1:1}, malicious_nodes=[], N=10, msg_level=LOG_LEVEL.WARNING, causal_broadcast = {0: [8,8,9,6,4], 1: [2,3,5]}):
         """
         Previously, we use broadcasters = {1:2, 2:1, ...} to launch concurrent broadcasts.
         From now on, the messages should be made causally related.
@@ -48,7 +48,7 @@ class RCO(BrachaRB):
         if old_queue is None:
             queue = self.causal_broadcast[self.node_id]
         else:
-            old_queue.pop(0)
+            #old_queue.pop(0)
             queue = old_queue.copy()
 
         u_id = self.get_uid_pred()
@@ -116,9 +116,26 @@ class RCO(BrachaRB):
         queue = payload.causal_order_queue
         self.msg_log.log(self.msg_level,f"{queue}, {type(queue)}")
 
-        if queue:
-            queue_top = queue[0]
-            if queue_top == self.node_id:
+        # if queue:
+        #     queue_top = queue[0]
+        #     if queue_top == self.node_id:
+        #         new_payload = self.generate_message(queue)
+        #         self.msg_log.log(self.msg_level, f"Node {self.node_id} is the next broadcaster for message: <{new_payload.message}>. Current message: <{payload.message}>")
+        #         asyncio.create_task(self.on_broadcast(new_payload))
+
+        event_broadcast_cnt = 0
+
+        while queue and queue[0] == self.node_id:
+            queue.pop(0)
+            event_broadcast_cnt +=1
+        
+        #self.msg_log.log(self.msg_level,f"{queue}, {type(queue)}")
+
+        for i in range(event_broadcast_cnt):
+
+            if i != event_broadcast_cnt - 1:
+                new_payload = self.generate_message([]) #this will generate a message that does not continue the causal order queue
+            else:
                 new_payload = self.generate_message(queue)
-                self.msg_log.log(self.msg_level, f"Node {self.node_id} is the next broadcaster for message: <{new_payload.message}>. Current message: <{payload.message}>")
-                asyncio.create_task(self.on_broadcast(new_payload))
+                self.msg_log.log(self.msg_level, f"Node {self.node_id} is the next broadcaster for message: <{new_payload}>.")
+            asyncio.create_task(self.on_broadcast(new_payload))
